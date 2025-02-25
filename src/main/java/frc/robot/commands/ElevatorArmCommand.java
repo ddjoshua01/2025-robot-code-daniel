@@ -4,21 +4,21 @@ package frc.robot.commands;
 import edu.wpi.first.networktables.BooleanEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj2.command.Command;
+import frc.robot.constants.ScoringConstants;
 import frc.robot.subsystems.ArmSubsystem;
 import frc.robot.subsystems.ElevatorSubsystem;
 import frc.robot.utils.ConfigManager;
 import frc.robot.utils.Controller;
 import frc.robot.utils.NetworkTablesUtils;
+import java.util.function.Supplier;
 
+/** Command to set the elevator and arm */
 public class ElevatorArmCommand extends Command {
-    public ElevatorSubsystem elevatorSubsystem;
-    public ArmSubsystem armSubsystem;
-    public Controller controller;
+    private final ElevatorSubsystem elevatorSubsystem;
+    private final ArmSubsystem armSubsystem;
+    private final Controller controller;
 
-    public String armPosKey;
-    public String elevatorPosKey;
-
-    public NetworkTablesUtils elevator = NetworkTablesUtils.getTable("Elevator");
+    private final NetworkTablesUtils elevator = NetworkTablesUtils.getTable("Elevator");
 
     private final BooleanEntry isAtHold =
             NetworkTableInstance.getDefault()
@@ -26,21 +26,31 @@ public class ElevatorArmCommand extends Command {
                     .getBooleanTopic("AtHoldPos")
                     .getEntry(true);
 
+    private final Supplier<ScoringConstants.ScoringHeights> targetSupplier;
+
+    /**
+     * Create an instance of the command to place the arm
+     *
+     * @param elevatorSubsystem The instance of {@link ElevatorSubsystem}
+     * @param armSubsystem The instance of {@link ArmSubsystem}
+     * @param controller A controller TODO: Stop passing in controllers!!!
+     * @param targetSupplier A {@link Supplier<ScoringConstants.ScoringHeights>} for the target
+     *     height and angle of the arm for the elevator
+     */
     public ElevatorArmCommand(
             ElevatorSubsystem elevatorSubsystem,
             ArmSubsystem armSubsystem,
             Controller controller,
-            String armPosKey,
-            String elevatorPosKey) {
+            Supplier<ScoringConstants.ScoringHeights> targetSupplier) {
         this.elevatorSubsystem = elevatorSubsystem;
         this.armSubsystem = armSubsystem;
         this.controller = controller;
-        this.armPosKey = armPosKey;
-        this.elevatorPosKey = elevatorPosKey;
+        this.targetSupplier = targetSupplier;
 
         addRequirements(elevatorSubsystem, armSubsystem);
     }
 
+    @Override
     public void initialize() {
         elevatorSubsystem.resetPID();
         armSubsystem.resetPID();
@@ -48,10 +58,21 @@ public class ElevatorArmCommand extends Command {
 
     @Override
     public void execute() {
-        double elevatorPos = ConfigManager.getInstance().get(elevatorPosKey, 0.0);
-        double armPos = ConfigManager.getInstance().get(armPosKey, 0.0);
+        double elevatorPos =
+                ConfigManager.getInstance()
+                        .get(
+                                String.format(
+                                        "elevator_%s",
+                                        targetSupplier.get().toString().toLowerCase()),
+                                0.0);
+        double armPos =
+                ConfigManager.getInstance()
+                        .get(
+                                String.format(
+                                        "arm_%s", targetSupplier.get().toString().toLowerCase()),
+                                0.0);
 
-        elevator.setEntry("setpoint", elevatorPos);
+        elevator.setEntry("Setpoint", elevatorPos);
 
         if ((armSubsystem.getPivotAngle() <= -Math.PI / 4 || armSubsystem.getPivotAngle() >= 0)
                 && elevatorSubsystem.getElevatorPosition() <= 0.24
@@ -76,8 +97,6 @@ public class ElevatorArmCommand extends Command {
 
     @Override
     public void end(boolean interrupted) {
-        //        armSubsystem.setPivotVoltage(0);
         armSubsystem.setIntakeVoltage(0);
-        //        elevatorSubsystem.setVoltage(0);
     }
 }
