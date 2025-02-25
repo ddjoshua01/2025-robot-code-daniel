@@ -9,7 +9,7 @@ import java.util.Map;
 public class CoralQueueConstants {
     public static final Pose2d[] CORAL_POSITIONS =
             new Pose2d[] {
-                new Pose2d(5.0, 7.0, Rotation2d.fromDegrees(12.0)), // R0
+                new Pose2d(5.0, 7.0, Rotation2d.fromDegrees(12.0)), // R0 R
                 new Pose2d(9.0, 0.0, Rotation2d.fromDegrees(0.0)), // R1
                 new Pose2d(5.0, 0.0, Rotation2d.fromDegrees(0.0)), // R2
                 new Pose2d(0.5, 0.0, Rotation2d.fromDegrees(0.0)), // R3
