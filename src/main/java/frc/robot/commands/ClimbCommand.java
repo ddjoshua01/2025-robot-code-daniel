@@ -2,6 +2,7 @@
 package frc.robot.commands;
 
 import edu.wpi.first.wpilibj2.command.Command;
+import frc.robot.constants.ClimberConstants;
 import frc.robot.subsystems.ClimberSubsystem;
 import frc.robot.utils.Controller;
 
@@ -19,13 +20,13 @@ public class ClimbCommand extends Command {
     @Override
     public void execute() {
         if (controller.dpadDown.getAsBoolean()) {
-            climberSubsystem.setLiftMotorPercent(1.0);
+            climberSubsystem.setLiftMotorPercent(ClimberConstants.LIFT_MOTOR_PERCENTAGE);
         } else if (controller.dpadUp.getAsBoolean()) {
-            climberSubsystem.setLiftMotorPercent(-1.0);
+            climberSubsystem.setLiftMotorPercent(-ClimberConstants.LIFT_MOTOR_PERCENTAGE);
         } else if (controller.dpadRight.getAsBoolean()) {
-            climberSubsystem.setLockMotorPercent(-0.2);
+            climberSubsystem.setLockMotorPercent(-ClimberConstants.LOCK_MOTOR_PERCENTAGE);
         } else if (controller.dpadLeft.getAsBoolean()) {
-            climberSubsystem.setLockMotorPercent(0.2);
+            climberSubsystem.setLockMotorPercent(ClimberConstants.LOCK_MOTOR_PERCENTAGE);
         }
     }
 
