@@ -15,21 +15,20 @@ public class ClimberSubsystem extends SubsystemBase {
 
     private final WPI_TalonSRX lockMotor = new WPI_TalonSRX(ClimberConstants.LOCK_MOTOR_ID);
 
-
     /**
      * Run the lift motor, which lifts the robot, with percentage.
+     *
      * @param percent
      */
-
     public void setLiftMotorPercent(double percent) {
         liftMotor.set(percent);
     }
 
     /**
      * Run the lock motor, which locks the climber to the cage, with percentage.
+     *
      * @param percent
      */
-
     public void setLockMotorPercent(double percent) {
         lockMotor.set(percent);
     }
