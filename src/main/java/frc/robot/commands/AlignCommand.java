@@ -10,10 +10,18 @@ import frc.robot.constants.AlignConstants;
 import frc.robot.framework.Odometry;
 import frc.robot.subsystems.SwerveSubsystem;
 import frc.robot.utils.ConfigManager;
+import frc.robot.utils.Controller;
 import frc.robot.utils.NetworkTablesUtils;
+import java.util.function.Supplier;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
+/** Align the robot in fieldspace */
 public class AlignCommand extends Command {
+    private static final Logger LOGGER = LogManager.getLogger();
     private final SwerveSubsystem swerveSubsystem;
+
+    private final Controller controller;
 
     private final ProfiledPIDController xAxisPid =
             new ProfiledPIDController(
@@ -39,24 +47,44 @@ public class AlignCommand extends Command {
     private final Odometry odometry = Odometry.getInstance();
     private final ConfigManager configManager = ConfigManager.getInstance();
 
-    private Pose2d targetPos;
     private final String profile;
+    private final boolean stopWhenFinished;
+
+    private final Supplier<Pose2d> pose2dSupplier;
 
     private final NetworkTablesUtils debug = NetworkTablesUtils.getTable("debug");
 
+    private Pose2d targetPos;
+
     private double timeSenseFinished = -1;
     private boolean doUpdate = true;
-    private boolean stopWhenFinished;
 
+    /**
+     * Align to a fieldspace position with odometry
+     *
+     * @param swerveSubsystem The instance of swerve subsystem
+     * @param controller The primary driving {@link edu.wpi.first.wpilibj.XboxController}, used for
+     *     driver to override vision
+     * @param poseSupplier A {@link Supplier<Pose2d>} for poses
+     * @param stopWhenFinished Weather to stop swerve or not when the command is complete, set to
+     *     false if you are doing multiple paths in a row
+     * @param profile The tuning profile to use, generates separate entries in {@link ConfigManager}
+     *     for tolerances and trapezoid tuning (DON'T spell it wrong unless you want 10 extra
+     *     useless values in cfg manager!!!)
+     */
     public AlignCommand(
             SwerveSubsystem swerveSubsystem,
-            Pose2d targetPose,
+            Controller controller,
+            Supplier<Pose2d> poseSupplier,
             boolean stopWhenFinished,
             String profile) {
         this.swerveSubsystem = swerveSubsystem;
-        this.targetPos = targetPose;
+        this.controller = controller;
+        this.pose2dSupplier = poseSupplier;
         this.stopWhenFinished = stopWhenFinished;
         this.profile = profile;
+
+        LOGGER.debug("Created new align command with '{}' profile", this.profile);
 
         this.xAxisPid.setTolerance(
                 configManager.get(String.format("align_%s_pos_tolerance", this.profile), 0.05));
@@ -74,13 +102,11 @@ public class AlignCommand extends Command {
 
     @Override
     public void initialize() {
+        this.targetPos = pose2dSupplier.get();
         this.timeSenseFinished = -1;
         this.doUpdate = true;
 
         Pose3d robotPose = odometry.getRobotPose();
-        //        this.xAxisPid.reset(robotPose.getX());
-        //        this.yAxisPid.reset(robotPose.getY());
-        //        this.rotationPid.reset(robotPose.getRotation().getZ());
 
         // PID updates
         this.xAxisPid.setP(configManager.get("align_x_axis_p", 3));
@@ -196,9 +222,20 @@ public class AlignCommand extends Command {
                     this.targetPos.getRotation().getRadians()
                 });
 
-        swerveSubsystem.drive(finalX, finalY, rotationPidCalc, true, true, true);
+        if (controller.hasStickInput(0.03) || !odometry.hasSeenTarget()) {
+            swerveSubsystem.drive(
+                    controller.getLeftX(),
+                    controller.getLeftY(),
+                    controller.getRightX(),
+                    true,
+                    true,
+                    false);
+        } else {
+            swerveSubsystem.drive(finalX, finalY, rotationPidCalc, true, true, true);
+        }
 
         if (xAxisPid.atGoal() && yAxisPid.atGoal() && rotationPid.atGoal() && this.doUpdate) {
+            LOGGER.debug("Hit goal, waiting for time to expire");
             this.timeSenseFinished = Timer.getFPGATimestamp() * 1000;
             this.doUpdate = false;
         }
@@ -217,9 +254,5 @@ public class AlignCommand extends Command {
     @Override
     public void end(boolean interrupted) {
         if (stopWhenFinished) swerveSubsystem.drive(0, 0, 0, false, true, false);
-        //        else
-        //            swerveSubsystem.drive(
-        //                    configManager.get("align_end_forward", 1.0), 0.0, 0.0, false, false,
-        // false);
     }
 }

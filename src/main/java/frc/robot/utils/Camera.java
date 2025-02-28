@@ -49,7 +49,7 @@ public class Camera {
                         Optional.of(
                                 new PhotonPoseEstimator(
                                         AprilTagFieldLayout.loadField(
-                                                AprilTagFields.k2025Reefscape),
+                                                AprilTagFields.k2025ReefscapeWelded),
                                         PhotonPoseEstimator.PoseStrategy
                                                 .MULTI_TAG_PNP_ON_COPROCESSOR,
                                         this.camOffset));
@@ -78,12 +78,9 @@ public class Camera {
                 PhotonPipelineResult res;
                 try {
                     res = this.photonCamera.get().getAllUnreadResults().get(0);
-                    Transform3d bestCamToTarget = res.getBestTarget().getBestCameraToTarget();
+                    Transform3d worstTarget = res.getBestTarget().getBestCameraToTarget();
                     this.targetPose =
-                            new Pose3d(
-                                            bestCamToTarget.getTranslation(),
-                                            bestCamToTarget.getRotation())
-                                    .transformBy(this.camOffset);
+                            new Pose3d(worstTarget.getTranslation(), worstTarget.getRotation());
                 } catch (Exception e) {
                     return Optional.empty();
                 }
@@ -166,7 +163,11 @@ public class Camera {
         return this.name;
     }
 
-    /** */
+    /**
+     * Get the target position, not sure if this works
+     *
+     * @return The targets pose relative to the robot
+     */
     public Pose3d getTargetPose() {
         return this.targetPose;
     }

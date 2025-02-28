@@ -6,22 +6,28 @@ import edu.wpi.first.wpilibj.Filesystem;
 import java.io.*;
 import java.nio.file.Path;
 import java.util.EnumSet;
-import java.util.Iterator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
+/**
+ * Allows the creation of persistent (deploys, reboot, etc) tuning values by saving a json file on
+ * the robot
+ *
+ * <p><strong>NOTE:</strong> These values are stored on the RoboRIO, if you switch rios the values
+ * WILL NOT BE THE SAME and you will have to either: Renter them, or copy the file from the other
+ * rio
+ */
 public class ConfigManager {
-    private static ConfigManager INSTANCE;
+    private static ConfigManager INSTANCE = null;
 
-    private final File configFile =
-            Path.of(Filesystem.getDeployDirectory().toPath().toString(), "tuning.json").toFile();
+    private final File configFile;
 
     private JSONObject json;
 
-    private NetworkTablesUtils NTTune = NetworkTablesUtils.getTable("Tune");
+    private final NetworkTablesUtils NTTune = NetworkTablesUtils.getTable("Tune");
 
     private static final Logger LOGGER = LogManager.getLogger();
 
@@ -32,26 +38,36 @@ public class ConfigManager {
      */
     public static synchronized ConfigManager getInstance() {
         if (INSTANCE == null) {
-            INSTANCE = new ConfigManager();
+            INSTANCE =
+                    new ConfigManager(
+                            System.getProperty("dev.blackknights.isTest") != null
+                                    ? Path.of(
+                                                    Filesystem.getDeployDirectory()
+                                                            .toPath()
+                                                            .toString(),
+                                                    "tuning.json")
+                                            .toFile()
+                                    : Path.of(System.getProperty("java.io.tmpdir"), "tuning.json")
+                                            .toFile());
         }
 
         return INSTANCE;
     }
 
     /** Util class to allow for good network table tuning */
-    public ConfigManager() {
+    private ConfigManager(File configFile) {
+        this.configFile = configFile;
         try {
             if (configFile.createNewFile() || configFile.length() == 0) {
                 LOGGER.info("Created config file");
                 this.json = this.getDefault();
-                this.saveConfig();
             }
         } catch (IOException e) {
 
             LOGGER.warn("Failed to create config file", e);
         }
 
-        this.json = parseConfig();
+        this.parseConfig();
         this.initNtValues();
         this.initListener();
     }
@@ -59,10 +75,7 @@ public class ConfigManager {
     /** Initialize the network table values */
     @SuppressWarnings("unchecked")
     public void initNtValues() {
-        Iterator<String> keys = this.json.keySet().iterator();
-        LOGGER.info(keys);
-        while (keys.hasNext()) {
-            String key = keys.next();
+        for (String key : (Iterable<String>) this.json.keySet()) {
             LOGGER.info("Initializing [{}] network table entry to [{}]", key, this.json.get(key));
             this.NTTune.getNetworkTable().getEntry(key).setValue(this.json.get(key));
         }
@@ -72,12 +85,11 @@ public class ConfigManager {
     @SuppressWarnings("unchecked")
     private void initListener() {
         NTTune.addListener(
-                (EnumSet.of(NetworkTableEvent.Kind.kValueAll)),
+                (EnumSet.of(NetworkTableEvent.Kind.kValueRemote)),
                 (table, key1, event) -> {
                     Object value = table.getValue(key1).getValue();
                     this.json.put(key1, value);
                     LOGGER.info("Updated [{}] to `{}`", key1, value.toString());
-                    // table.getEntry(key1).getDouble(-1));
 
                     this.saveConfig();
                 });
@@ -95,11 +107,6 @@ public class ConfigManager {
         return defaultSettings;
     }
 
-    public void saveDefault() {
-        this.json = getDefault();
-        this.saveConfig();
-    }
-
     /**
      * Get an integer value from the config
      *
@@ -108,7 +115,7 @@ public class ConfigManager {
      * @return The value from the key
      */
     @SuppressWarnings("unchecked")
-    public long get(String key, int defaultValue) {
+    public synchronized long get(String key, int defaultValue) {
         this.checkDefault(key, defaultValue);
         return (long) getDouble(key, (double) defaultValue);
     }
@@ -121,7 +128,7 @@ public class ConfigManager {
      * @return The value from the key
      */
     @SuppressWarnings("unchecked")
-    public double get(String key, double defaultValue) {
+    public synchronized double get(String key, double defaultValue) {
         this.checkDefault(key, defaultValue);
         return getDouble(key, defaultValue);
     }
@@ -134,7 +141,7 @@ public class ConfigManager {
      * @return The value from the key
      */
     @SuppressWarnings("unchecked")
-    public String get(String key, String defaultValue) {
+    public synchronized String get(String key, String defaultValue) {
         this.checkDefault(key, defaultValue);
         return getString(key, defaultValue);
     }
@@ -147,7 +154,7 @@ public class ConfigManager {
      * @return The value from the key
      */
     @SuppressWarnings("unchecked")
-    public boolean get(String key, boolean defaultValue) {
+    public synchronized boolean get(String key, boolean defaultValue) {
         this.checkDefault(key, defaultValue);
         return getBoolean(key, defaultValue);
     }
@@ -161,10 +168,16 @@ public class ConfigManager {
      */
     private double getDouble(String key, double defaultValue) {
         double res = defaultValue;
-        try {
-            res = Double.parseDouble(this.json.get(key).toString());
-        } catch (Exception e) {
-            LOGGER.warn("Failed to get {} as a double", key, e);
+        Object number = this.json.get(key);
+
+        if (number != null) {
+            try {
+                res = Double.parseDouble(number.toString());
+            } catch (Exception e) {
+                LOGGER.warn("Failed to get {} as a double", key, e);
+            }
+        } else {
+            LOGGER.warn("{} is a NULL value", key);
         }
 
         return res;
@@ -219,34 +232,35 @@ public class ConfigManager {
     }
 
     /** Save the config to the config file location */
-    public void saveConfig() {
+    public synchronized void saveConfig() {
         try (PrintWriter printWriter = new PrintWriter(this.configFile)) {
             printWriter.println(this.json.toJSONString());
+            printWriter.flush();
         } catch (FileNotFoundException e) {
             LOGGER.warn("Failed to save file: {}", configFile, e);
         }
     }
 
-    /**
-     * Parse the config file
-     *
-     * @return The parsed config as a {@link JSONObject}
-     */
-    private JSONObject parseConfig() {
-        JSONObject jObj = new JSONObject();
+    /** Parse the config file */
+    private void parseConfig() {
         JSONParser parser = new JSONParser();
         try {
             Object obj = parser.parse(new FileReader(this.configFile));
-            jObj = (JSONObject) obj;
-        } catch (IOException | ParseException e) {
+            this.json = (JSONObject) obj;
+        } catch (IOException | ParseException | ClassCastException e) {
             LOGGER.error("An error occurred while parsing the config file", e);
         }
-        return jObj;
     }
 
+    /**
+     * Check if the key exists in the json/NT if it doesn't, put the default value in
+     *
+     * @param key The key for the value
+     * @param defaultValue The default value to be set if the key doesn't exist
+     */
     @SuppressWarnings("unchecked")
     private void checkDefault(String key, Object defaultValue) {
-        if (!NTTune.keyExists(key)) {
+        if (!this.json.containsKey(key)) {
             LOGGER.info("{} does not exist, creating a setting to {}", key, defaultValue);
             NTTune.getNetworkTable().getEntry(key).setValue(defaultValue);
             this.json.put(key, defaultValue);
