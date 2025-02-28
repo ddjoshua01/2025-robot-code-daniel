@@ -18,17 +18,9 @@ public class CoralQueue {
     private final ArrayList<CoralPosition> coralPositionList = new ArrayList<>();
     private final NetworkTablesUtils NTUtils = NetworkTablesUtils.getTable("CoralQueue");
     private int positionListIndex = 0;
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
     private boolean interrupt = false;
-=======
 
     private final Map<String, Integer> profileIndices = new HashMap<>();
->>>>>>> Stashed changes
-=======
-
-    private final Map<String, Integer> profileIndices = new HashMap<>();
->>>>>>> Stashed changes
     private CoralPosition currentPos = new CoralPosition();
     private String currentProfile = "";
 
