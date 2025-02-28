@@ -56,6 +56,7 @@ public class ScoringConstants {
     static {
         PROFILES.put("PROFILE_1", new String[] {"10L2", "9L3", "8L4", "7L2", "6L4", "5L3", "4L2"});
         PROFILES.put("PROFILE_2", new String[] {"5L3", "4L3", "3L3", "2L3", "1L3"});
+        PROFILES.put("L4_SNAKE_LEFT_CCW", new String[] {"12L4", "11L4", "10L4", "9L4"});
     }
 
     public static Pose2d getPoseFromTag(String side, int id) {

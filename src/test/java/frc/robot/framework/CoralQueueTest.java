@@ -120,4 +120,55 @@ class CoralQueueTest {
         DriverStationSim.setAllianceStationId(AllianceStationID.Red1); // Set back to red
         DriverStationSim.notifyNewData();
     }
+
+    @Test
+    void testProfileIndexMemory() {
+        coralQueue.loadQueueFromInput("PROFILE_1");
+
+        coralQueue.stepForwards();
+
+        CoralQueue.CoralPosition expected =
+                new CoralQueue.CoralPosition(
+                        "9L3",
+                        ScoringConstants.CORAL_POSITIONS[8],
+                        ScoringConstants.ScoringHeights.L3);
+        assertEquals(expected, coralQueue.getCurrentPosition());
+
+        coralQueue.loadQueueFromInput("PROFILE_2");
+
+        expected =
+                new CoralQueue.CoralPosition(
+                        "5L3",
+                        ScoringConstants.CORAL_POSITIONS[4],
+                        ScoringConstants.ScoringHeights.L3);
+        assertEquals(expected, coralQueue.getCurrentPosition());
+
+        coralQueue.stepForwards();
+        coralQueue.stepForwards();
+
+        expected =
+                new CoralQueue.CoralPosition(
+                        "3L3",
+                        ScoringConstants.CORAL_POSITIONS[2],
+                        ScoringConstants.ScoringHeights.L3);
+        assertEquals(expected, coralQueue.getCurrentPosition());
+
+        coralQueue.loadQueueFromInput("PROFILE_1");
+
+        expected =
+                new CoralQueue.CoralPosition(
+                        "9L3",
+                        ScoringConstants.CORAL_POSITIONS[8],
+                        ScoringConstants.ScoringHeights.L3);
+        assertEquals(expected, coralQueue.getCurrentPosition());
+
+        coralQueue.loadQueueFromInput("PROFILE_2");
+
+        expected =
+                new CoralQueue.CoralPosition(
+                        "3L3",
+                        ScoringConstants.CORAL_POSITIONS[2],
+                        ScoringConstants.ScoringHeights.L3);
+        assertEquals(expected, coralQueue.getCurrentPosition());
+    }
 }

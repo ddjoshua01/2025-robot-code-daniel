@@ -6,9 +6,7 @@ import edu.wpi.first.wpilibj.DriverStation;
 import frc.robot.constants.ScoringConstants;
 import frc.robot.utils.ConfigManager;
 import frc.robot.utils.NetworkTablesUtils;
-import java.util.ArrayList;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -19,10 +17,15 @@ public class CoralQueue {
 
     private final ArrayList<CoralPosition> coralPositionList = new ArrayList<>();
     private final NetworkTablesUtils NTUtils = NetworkTablesUtils.getTable("CoralQueue");
-
     private int positionListIndex = 0;
+<<<<<<< Updated upstream
     private boolean interrupt = false;
+=======
+
+    private final Map<String, Integer> profileIndices = new HashMap<>();
+>>>>>>> Stashed changes
     private CoralPosition currentPos = new CoralPosition();
+    private String currentProfile = "";
 
     /** Create a new instance of coral queue */
     protected CoralQueue() {}
@@ -34,13 +37,11 @@ public class CoralQueue {
      */
     public static CoralQueue getInstance() {
         if (INSTANCE == null) INSTANCE = new CoralQueue();
-
         return INSTANCE;
     }
 
     /**
-     * Add position string to queue. No spaces, separated by commas. (e.g.
-     * B10H2,R1H3,R2H2,B1H1,B5H4).
+     * Add position string to queue. No spaces, separated by commas. (e.g. '10L2,1L3,2L2,1L1,5L4').
      *
      * @param posStrList The list of pose strings
      */
@@ -85,14 +86,24 @@ public class CoralQueue {
         if (positionListIndex < 0) {
             positionListIndex = 0;
         }
+
+        if (!currentProfile.isEmpty()) {
+            profileIndices.put(currentProfile, positionListIndex);
+        }
+
         getCurrentPosition();
     }
 
     /** Step forwards in the queue */
     public void stepForwards() {
         positionListIndex += 1;
+
         if (positionListIndex > coralPositionList.size() - 1) {
             positionListIndex = coralPositionList.size() - 1;
+        }
+
+        if (!currentProfile.isEmpty()) {
+            profileIndices.put(currentProfile, positionListIndex);
         }
 
         getCurrentPosition();
@@ -178,7 +189,12 @@ public class CoralQueue {
         this.listToQueue(ConfigManager.getInstance().get("Coral_Queue", "10L2,11L1"));
     }
 
-    public void loadQueueFromDefault(String profile) {
+    /**
+     * Load unique coral profiles from the button board, and save each profile's indices.
+     *
+     * @param profile
+     */
+    public void loadQueueFromInput(String profile) {
         String[] profileChosen = ScoringConstants.PROFILES.get(profile);
 
         if (profileChosen == null) {
@@ -189,6 +205,26 @@ public class CoralQueue {
 
         for (String i : profileChosen) {
             addPosition(i);
+        }
+
+        if (!currentProfile.isEmpty() && !currentProfile.equals(profile)) {
+            profileIndices.put(currentProfile, positionListIndex);
+        }
+
+        clearList();
+
+        for (String i : profileChosen) {
+            addPosition(i);
+        }
+
+        currentProfile = profile;
+
+        if (profileIndices.containsKey(profile)) {
+            int savedIndex = profileIndices.get(profile);
+            positionListIndex = Math.min(savedIndex, coralPositionList.size() - 1);
+        } else {
+            positionListIndex = 0;
+            profileIndices.put(profile, positionListIndex);
         }
     }
 
