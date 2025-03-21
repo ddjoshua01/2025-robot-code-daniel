@@ -255,7 +255,10 @@ public class SwerveSubsystem extends SubsystemBase {
             if (currentTranslationMagnitude != 0.0) {
                 directionSlewRate =
                         Math.abs(
-                                DrivetrainConstants.DIRECTION_SLEW_RATE
+                                ConfigManager.getInstance()
+                                                .get(
+                                                        "drive_direction_slew_rate",
+                                                        DrivetrainConstants.DIRECTION_SLEW_RATE)
                                         / currentTranslationMagnitude);
             } else {
                 directionSlewRate = 500.0; // super high number means slew is instantaneous

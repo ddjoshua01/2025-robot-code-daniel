@@ -76,7 +76,7 @@ public class RobotContainer {
         superSecretMissileTech.addOption(
                 "LEFT_3",
                 new SequentialCommandGroup(
-                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("10L4")),
+                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("10L2")),
                         getAutoIntakeCommand(IntakeSides.LEFT),
                         getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("8L4")),
                         getAutoIntakeCommand(IntakeSides.LEFT),
@@ -85,11 +85,11 @@ public class RobotContainer {
         superSecretMissileTech.addOption(
                 "RIGHT_3",
                 new SequentialCommandGroup(
-                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("3L4")),
+                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("3L2")),
                         getAutoIntakeCommand(IntakeSides.RIGHT),
-                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("6L4")),
+                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("4L4")),
                         getAutoIntakeCommand(IntakeSides.RIGHT),
-                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("7L4"))));
+                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("5L4"))));
 
         superSecretMissileTech.addOption(
                 "CENTER_LEFT",
@@ -355,13 +355,13 @@ public class RobotContainer {
                 intakePose.plus(new Transform2d(0, 0, Rotation2d.fromRadians(Math.PI)));
 
         return new ParallelRaceGroup(
+                new IntakeCommand(intakeSubsystem, IntakeCommand.IntakeMode.INTAKE),
                 new ParallelCommandGroup(
                         new AlignCommand(swerveSubsystem, () -> intakePoseFinal, true, "rough"),
-                        new IntakeCommand(intakeSubsystem, IntakeCommand.IntakeMode.INTAKE)),
-                new ElevatorArmCommand(
-                        elevatorSubsystem,
-                        armSubsystem,
-                        () -> ScoringConstants.ScoringHeights.INTAKE));
+                        new ElevatorArmCommand(
+                                elevatorSubsystem,
+                                armSubsystem,
+                                () -> ScoringConstants.ScoringHeights.INTAKE)));
     }
 
     private static Pose2d getPose2d(IntakeSides side) {
@@ -388,7 +388,7 @@ public class RobotContainer {
         RIGHT
     }
 
-    private class AutoEndCommand extends Command {
+    private static class AutoEndCommand extends Command {
         private double currTime = Timer.getFPGATimestamp() * 1000;
 
         @Override

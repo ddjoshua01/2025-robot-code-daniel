@@ -146,7 +146,7 @@ public class ElevatorSubsystem extends SubsystemBase {
         elevatorPID.setGoal(position);
 
         double pidCalc = elevatorPID.calculate(getElevatorPosition());
-        double ffCalc = elevatorFF.calculate(0.0);
+        double ffCalc = elevatorFF.calculate(elevatorPID.getSetpoint().velocity);
 
         //        if (Math.abs(this.getLeftEncoderPosition() - this.getRightEncoderPosition())
         //                > ConfigManager.getInstance().get("max_roation_diff", 1)) {

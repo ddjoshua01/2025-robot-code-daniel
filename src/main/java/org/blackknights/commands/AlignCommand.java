@@ -12,6 +12,7 @@ import org.apache.logging.log4j.Logger;
 import org.blackknights.constants.AlignConstants;
 import org.blackknights.framework.Odometry;
 import org.blackknights.subsystems.SwerveSubsystem;
+import org.blackknights.utils.AlignUtils;
 import org.blackknights.utils.ConfigManager;
 import org.blackknights.utils.NetworkTablesUtils;
 
@@ -251,6 +252,15 @@ public class AlignCommand extends Command {
 
         this.xAxisInfPid.setGoal(targetPos.getX());
         this.yAxisInfPid.setGoal(targetPos.getY());
+
+        if (!stopWhenFinished) {
+            Pose2d fakePose =
+                    AlignUtils.getXDistBack(
+                            robotPose.toPose2d(),
+                            ConfigManager.getInstance().get("fake_pose_dist_back", 0.5));
+            this.xAxisPid.calculate(fakePose.getX());
+            this.yAxisPid.calculate(fakePose.getY());
+        }
     }
 
     @Override
