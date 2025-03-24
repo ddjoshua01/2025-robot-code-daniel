@@ -337,7 +337,7 @@ public class AlignCommand extends Command {
                     this.targetPos.getRotation().getRadians()
                 });
 
-        swerveSubsystem.drive(finalX, finalY, rotationPidCalc, true, true, true);
+        swerveSubsystem.drive(finalX, finalY, rotationPidCalc, true, !stopWhenFinished, true);
 
         if (checkAtGoal() && doUpdate) {
             LOGGER.info("Hit goal, waiting for time to expire");

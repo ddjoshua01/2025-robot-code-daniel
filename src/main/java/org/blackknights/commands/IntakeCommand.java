@@ -11,7 +11,7 @@ public class IntakeCommand extends Command {
     private final IntakeSubsystem intakeSubsystem;
     private final IntakeMode mode;
 
-    private double currentTime;
+    private double startTime;
 
     /**
      * Create a new intake command
@@ -27,7 +27,7 @@ public class IntakeCommand extends Command {
 
     @Override
     public void initialize() {
-        this.currentTime = Timer.getFPGATimestamp() * 1000;
+        this.startTime = Timer.getFPGATimestamp() * 1000;
     }
 
     @Override
@@ -41,8 +41,11 @@ public class IntakeCommand extends Command {
                 }
             case OUTTAKE:
                 {
-                    intakeSubsystem.setVoltage(
-                            ConfigManager.getInstance().get("outtake_speed", -8.0));
+                    if (Timer.getFPGATimestamp() * 1000 - this.startTime
+                            > ConfigManager.getInstance().get("outtake_wait_time_ms", 40)) {
+                        intakeSubsystem.setVoltage(
+                                ConfigManager.getInstance().get("outtake_speed", -8.0));
+                    }
                     break;
                 }
         }
@@ -58,8 +61,8 @@ public class IntakeCommand extends Command {
         return (mode.equals(IntakeMode.INTAKE) && intakeSubsystem.getLinebreak())
                 || (mode.equals(IntakeMode.OUTTAKE)
                         && !intakeSubsystem.getLinebreak()
-                        && Timer.getFPGATimestamp() * 1000 - this.currentTime
-                                > ConfigManager.getInstance().get("outtake_wait_time_ms", 40));
+                        && Timer.getFPGATimestamp() * 1000 - this.startTime
+                                > ConfigManager.getInstance().get("outtaking_time_ms", 40));
     }
 
     /** Enum of the different intake modes */

@@ -76,7 +76,7 @@ public class RobotContainer {
         superSecretMissileTech.addOption(
                 "LEFT_3",
                 new SequentialCommandGroup(
-                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("10L2")),
+                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("10L4")),
                         getAutoIntakeCommand(IntakeSides.LEFT),
                         getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("8L4")),
                         getAutoIntakeCommand(IntakeSides.LEFT),
@@ -85,7 +85,7 @@ public class RobotContainer {
         superSecretMissileTech.addOption(
                 "RIGHT_3",
                 new SequentialCommandGroup(
-                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("3L2")),
+                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("3L4")),
                         getAutoIntakeCommand(IntakeSides.RIGHT),
                         getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("4L4")),
                         getAutoIntakeCommand(IntakeSides.RIGHT),
@@ -314,7 +314,9 @@ public class RobotContainer {
                                 armSubsystem,
                                 () -> nextSupplier.get().getHeight()),
                         new IntakeCommand(intakeSubsystem, IntakeCommand.IntakeMode.OUTTAKE)
-                                .withTimeout(1)),
+                                .withTimeout(
+                                        ConfigManager.getInstance()
+                                                .get("outtake_max_time_sec", 5.0))),
                 new ParallelRaceGroup(
                         new AutoEndCommand(),
                         new BaseCommand(elevatorSubsystem, armSubsystem),
