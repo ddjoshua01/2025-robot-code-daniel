@@ -3,6 +3,7 @@ package org.blackknights.controllers;
 
 import com.revrobotics.AbsoluteEncoder;
 import com.revrobotics.RelativeEncoder;
+import com.revrobotics.spark.ClosedLoopSlot;
 import com.revrobotics.spark.SparkBase.ControlType;
 import com.revrobotics.spark.SparkBase.PersistMode;
 import com.revrobotics.spark.SparkBase.ResetMode;
@@ -15,6 +16,7 @@ import com.revrobotics.spark.config.SparkMaxConfig;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
+import org.blackknights.utils.ConfigManager;
 
 /** A wrapper class for swerve modules */
 public class MAXSwerveModule {
@@ -105,7 +107,10 @@ public class MAXSwerveModule {
 
         // Command driving and turning SPARKS towards their respective setpoints.
         drivingClosedLoopController.setReference(
-                correctedDesiredState.speedMetersPerSecond, ControlType.kVelocity);
+                correctedDesiredState.speedMetersPerSecond,
+                ControlType.kVelocity,
+                ClosedLoopSlot.kSlot0,
+                ConfigManager.getInstance().get("swerve_module_ff", 0.0));
         turningClosedLoopController.setReference(
                 correctedDesiredState.angle.getRadians(), ControlType.kPosition);
 

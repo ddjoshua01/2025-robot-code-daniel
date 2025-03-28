@@ -331,6 +331,7 @@ public class SwerveSubsystem extends SubsystemBase {
                                         xSpeedDelivered, ySpeedDelivered, rotationDelivered));
         SwerveDriveKinematics.desaturateWheelSpeeds(
                 swerveModuleStates, DrivetrainConstants.MAX_SPEED_METERS_PER_SECOND);
+
         frontLeft.setDesiredState(swerveModuleStates[0]);
         frontRight.setDesiredState(swerveModuleStates[1]);
         rearLeft.setDesiredState(swerveModuleStates[2]);
