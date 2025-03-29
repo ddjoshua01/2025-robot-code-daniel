@@ -13,10 +13,35 @@ import org.apache.logging.log4j.Logger;
 import org.blackknights.constants.AlignConstants;
 import org.blackknights.framework.Odometry;
 import org.blackknights.subsystems.SwerveSubsystem;
+import org.blackknights.utils.AlignUtils;
 import org.blackknights.utils.ConfigManager;
 import org.blackknights.utils.NetworkTablesUtils;
 
-/** Align the robot in fieldspace */
+/**
+ * Align the robot in fieldspace Config Manager Keys: <br>
+ * - align_rot_p - Proportional gain for the rotation PID controller.<br>
+ * - align_rot_i - Integral gain for the rotation PID controller.<br>
+ * - align_rot_d - Derivative gain for the rotation PID controller.<br>
+ * - align_rot_max_vel_deg - Maximum rotational velocity (degrees per second).<br>
+ * - align_rot_max_accel_degps - Maximum rotational acceleration (degrees per second squared).<br>
+ * - align_rot_tolerance - Tolerance for considering the rotation PID at goal (degrees).<br>
+ * - align_[profile]_x_max_vel_m - Maximum velocity for X-axis movement (meters per second).<br>
+ * - align_[profile]_x_max_accel_mps - Maximum acceleration for X-axis movement (meters per second
+ * squared).<br>
+ * - align_[profile]_y_max_vel_m - Maximum velocity for Y-axis movement (meters per second).<br>
+ * - align_[profile]_y_max_accel_mps - Maximum acceleration for Y-axis movement (meters per second
+ * squared).<br>
+ * - align_[profile]_rotation_tolerance - Tolerance for rotational alignment (degrees).<br>
+ * - align_[profile]_pos_dist_tol - Position error tolerance before considering the robot aligned
+ * (meters).<br>
+ * - align_[profile]_vel_tol - Velocity tolerance for stopping criteria (meters per second).<br>
+ * - align_[profile]_halfmoon_dist - Distance from the target for the exclusion point(meters).<br>
+ * - align_[profile]_halfmoon_tol - The tolerance for the half moon exclusion point (radius of
+ * circle) (meters).<br>
+ * - align_[profile]_finish_time - Time in milliseconds the robot must stay within tolerances before
+ * stopping.<br>
+ * - align_trap_t_sec - Time step for trapezoidal motion profile calculations (seconds).<br>
+ */
 public class AlignCommand extends Command {
     private static final Logger LOGGER = LogManager.getLogger();
     private final SwerveSubsystem swerveSubsystem;
@@ -36,6 +61,7 @@ public class AlignCommand extends Command {
 
     private final String profile;
     private final boolean stopWhenFinished;
+    private final boolean useHalfMoon;
 
     private final Supplier<Pose2d> pose2dSupplier;
 
@@ -47,6 +73,9 @@ public class AlignCommand extends Command {
     private boolean doUpdate = true;
 
     private double distToTarget = Double.MAX_VALUE;
+    private double halfMoonDist = Double.MAX_VALUE;
+    private double finalXVel = 0;
+    private double finalYVel = 0;
 
     /**
      * Align to a fieldspace position with odometry
@@ -64,10 +93,12 @@ public class AlignCommand extends Command {
             SwerveSubsystem swerveSubsystem,
             Supplier<Pose2d> poseSupplier,
             boolean stopWhenFinished,
+            boolean useHalfMoon,
             String profile) {
         this.swerveSubsystem = swerveSubsystem;
         this.pose2dSupplier = poseSupplier;
         this.stopWhenFinished = stopWhenFinished;
+        this.useHalfMoon = useHalfMoon;
         this.profile = profile;
 
         LOGGER.debug("Created new align command with '{}' profile", this.profile);
@@ -91,6 +122,18 @@ public class AlignCommand extends Command {
         this.timeSenseFinished = -1;
         this.doUpdate = true;
         this.distToTarget = Double.MAX_VALUE;
+        this.halfMoonDist = Double.MAX_VALUE;
+        this.finalXVel =
+                Math.cos(this.targetPos.getRotation().getRadians())
+                        * configManager.get(
+                                String.format("align_%s_ending_vel_mag", this.profile), 1.0);
+        this.finalYVel =
+                Math.sin(this.targetPos.getRotation().getRadians())
+                        * configManager.get(
+                                String.format("align_%s_ending_vel_mag", this.profile), 1.0);
+
+        debug.setEntry("Align/Final X vel", finalXVel);
+        debug.setEntry("Align/Final Y vel", finalYVel);
 
         LOGGER.info("Initializing AlignCommand");
         Pose3d robotPose = odometry.getRobotPose();
@@ -147,8 +190,19 @@ public class AlignCommand extends Command {
         Pose3d robotPose = odometry.getRobotPose();
 
         this.distToTarget =
-                Math.pow(robotPose.getX() - targetPos.getX(), 2)
-                        + Math.pow(robotPose.getY() - targetPos.getY(), 2);
+                Math.sqrt(
+                        Math.pow(robotPose.getX() - targetPos.getX(), 2)
+                                + Math.pow(robotPose.getY() - targetPos.getY(), 2));
+
+        Pose2d halfMoonClosePose =
+                AlignUtils.getXDistBack(
+                        this.targetPos,
+                        -configManager.get(
+                                String.format("align_%s_halfmoon_dist", this.profile), 0.5));
+        this.halfMoonDist =
+                Math.sqrt(
+                        Math.pow(robotPose.getX() - halfMoonClosePose.getX(), 2)
+                                + Math.pow(robotPose.getY() - halfMoonClosePose.getY(), 2));
 
         double xAxisCalc =
                 this.xProfile.calculate(
@@ -157,7 +211,7 @@ public class AlignCommand extends Command {
                                         robotPose.getX(),
                                         swerveSubsystem.getFieldRelativeChassisSpeeds()
                                                 .vxMetersPerSecond),
-                                new TrapezoidProfile.State(targetPos.getX(), 0))
+                                new TrapezoidProfile.State(targetPos.getX(), this.finalXVel))
                         .velocity;
         double yAxisCalc =
                 this.yProfile.calculate(
@@ -166,7 +220,7 @@ public class AlignCommand extends Command {
                                         robotPose.getY(),
                                         swerveSubsystem.getFieldRelativeChassisSpeeds()
                                                 .vyMetersPerSecond),
-                                new TrapezoidProfile.State(targetPos.getY(), 0))
+                                new TrapezoidProfile.State(targetPos.getY(), this.finalYVel))
                         .velocity;
 
         double rotCalc = this.rotationPid.calculate(robotPose.getRotation().getZ());
@@ -200,7 +254,7 @@ public class AlignCommand extends Command {
                     this.targetPos.getRotation().getRadians()
                 });
 
-        swerveSubsystem.drive(xAxisCalc, yAxisCalc, rotCalc, true, !stopWhenFinished, true);
+        swerveSubsystem.drive(xAxisCalc, yAxisCalc, rotCalc, true, false, true);
 
         if (checkAtGoal() && doUpdate) {
             LOGGER.info("Hit goal, waiting for time to expire");
@@ -225,18 +279,51 @@ public class AlignCommand extends Command {
     }
 
     private boolean checkAtGoal() {
-        return distToTarget
+        debug.setEntry(
+                "Align/Dist Check",
+                distToTarget
                         <= configManager.get(
-                                String.format("align_%s_pos_dist_tol", this.profile), 0.0)
-                && rotationPid.atGoal()
-                && MathUtil.isNear(
+                                String.format("align_%s_pos_dist_tol", this.profile), 0.0));
+
+        debug.setEntry(
+                "Align/Half moon check",
+                (!useHalfMoon
+                        || halfMoonDist
+                                >= configManager.get(
+                                        String.format("align_%s_halfmoon_tol", this.profile),
+                                        0.0)));
+
+        debug.setEntry("Align/Rotation check", rotationPid.atGoal());
+        debug.setEntry(
+                "Align/X Vel Check",
+                MathUtil.isNear(
                         configManager.get(
                                 String.format("align_%s_x_target_end_vel", this.profile), 0.0),
                         swerveSubsystem.getFieldRelativeChassisSpeeds().vxMetersPerSecond,
-                        configManager.get(String.format("align_%s_vel_tol", this.profile), 0.0))
-                && MathUtil.isNear(
+                        configManager.get(String.format("align_%s_vel_tol", this.profile), 0.0)));
+
+        debug.setEntry(
+                "Align/Y Vel Check",
+                MathUtil.isNear(
                         configManager.get(
                                 String.format("align_%s_y_target_end_vel", this.profile), 0.0),
+                        swerveSubsystem.getFieldRelativeChassisSpeeds().vyMetersPerSecond,
+                        configManager.get(String.format("align_%s_vel_tol", this.profile), 0.0)));
+
+        return distToTarget
+                        <= configManager.get(
+                                String.format("align_%s_pos_dist_tol", this.profile), 0.0)
+                && (!useHalfMoon
+                        || halfMoonDist
+                                >= configManager.get(
+                                        String.format("align_%s_halfmoon_tol", this.profile), 0.0))
+                && rotationPid.atGoal()
+                && MathUtil.isNear(
+                        this.finalXVel,
+                        swerveSubsystem.getFieldRelativeChassisSpeeds().vxMetersPerSecond,
+                        configManager.get(String.format("align_%s_vel_tol", this.profile), 0.0))
+                && MathUtil.isNear(
+                        this.finalYVel,
                         swerveSubsystem.getFieldRelativeChassisSpeeds().vyMetersPerSecond,
                         configManager.get(String.format("align_%s_vel_tol", this.profile), 0.0));
     }
