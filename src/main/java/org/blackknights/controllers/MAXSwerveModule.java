@@ -13,15 +13,18 @@ import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.config.SparkFlexConfig;
 import com.revrobotics.spark.config.SparkMaxConfig;
+import edu.wpi.first.math.controller.SimpleMotorFeedforward;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
-import org.blackknights.utils.ConfigManager;
+import org.blackknights.utils.NetworkTablesUtils;
 
 /** A wrapper class for swerve modules */
 public class MAXSwerveModule {
     private final SparkFlex drivingSpark;
     private final SparkMax turningSpark;
+
+    private final int drivingCanId;
 
     private final RelativeEncoder drivingEncoder;
     private final AbsoluteEncoder turningEncoder;
@@ -32,6 +35,9 @@ public class MAXSwerveModule {
     private final double chassisAngularOffset;
     private SwerveModuleState desiredState = new SwerveModuleState(0.0, new Rotation2d());
 
+    private SimpleMotorFeedforward feedforward =
+            new SimpleMotorFeedforward(0.096286, 2.3216, 0.41854, 1);
+
     /**
      * Constructs a MAXSwerveModule and configures the driving and turning motor, encoder, and PID
      * controller. This configuration is specific to the REV MAXSwerve Module built with NEOs,
@@ -40,6 +46,7 @@ public class MAXSwerveModule {
     public MAXSwerveModule(int drivingCANId, int turningCANId, double chassisAngularOffset) {
         drivingSpark = new SparkFlex(drivingCANId, MotorType.kBrushless);
         turningSpark = new SparkMax(turningCANId, MotorType.kBrushless);
+        this.drivingCanId = drivingCANId;
 
         drivingEncoder = drivingSpark.getEncoder();
         turningEncoder = turningSpark.getAbsoluteEncoder();
@@ -105,12 +112,24 @@ public class MAXSwerveModule {
         // Optimize the reference state to avoid spinning further than 90 degrees.
         correctedDesiredState.optimize(new Rotation2d(turningEncoder.getPosition()));
 
-        // Command driving and turning SPARKS towards their respective setpoints.
+        double ffOutput =
+                feedforward.calculateWithVelocities(
+                        drivingEncoder.getVelocity(), correctedDesiredState.speedMetersPerSecond);
+
+        NetworkTablesUtils.getTable("debug")
+                .setEntry(String.format("ID(%s) - Swerve FF Output", drivingCanId), ffOutput);
+        NetworkTablesUtils.getTable("debug")
+                .setEntry(
+                        String.format("ID(%s) - Swerve target mps", drivingCanId),
+                        correctedDesiredState.speedMetersPerSecond);
+
+        // Command driving and turning SPARKS towards their respective endpoints.
         drivingClosedLoopController.setReference(
                 correctedDesiredState.speedMetersPerSecond,
                 ControlType.kVelocity,
                 ClosedLoopSlot.kSlot0,
-                ConfigManager.getInstance().get("swerve_module_ff", 0.0));
+                ffOutput);
+
         turningClosedLoopController.setReference(
                 correctedDesiredState.angle.getRadians(), ControlType.kPosition);
 

@@ -55,7 +55,7 @@ public class DrivetrainConstants {
     // The MAXSwerve module can be configured with one of three pinion gears: 12T,
     // 13T, or 14T. This changes the drive speed of the module (a pinion gear with
     // more teeth will result in a robot that drives faster).
-    public static final int DRIVING_MOTOR_PINION_TEETH = 14;
+    public static final int DRIVING_MOTOR_PINION_TEETH = 13;
     public static final int BEVEL_GEAR_TEETH = 45;
     public static final int FIRST_STAGE_SPUR_GEAR_TEETH = 22;
     public static final int BEVEL_PINION_TEETH = 15;

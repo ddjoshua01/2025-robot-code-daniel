@@ -1,8 +1,6 @@
 /* Black Knights Robotics (C) 2025 */
 package org.blackknights.subsystems;
 
-import com.revrobotics.spark.config.SparkFlexConfig;
-import com.revrobotics.spark.config.SparkMaxConfig;
 import com.studica.frc.AHRS;
 import edu.wpi.first.hal.FRCNetComm.tInstances;
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
@@ -24,7 +22,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.blackknights.constants.DrivetrainConstants;
 import org.blackknights.controllers.MAXSwerveModule;
-import org.blackknights.controllers.MAXSwerveModuleConfig;
 import org.blackknights.framework.Odometry;
 import org.blackknights.utils.ConfigManager;
 import org.blackknights.utils.NetworkTablesUtils;
@@ -133,26 +130,26 @@ public class SwerveSubsystem extends SubsystemBase {
                     .getDoubleTopic("rlpos")
                     .getEntry(rearLeft.getPosition().angle.getRadians());
 
-    public void reconfigure() {
-        ConfigManager cm = ConfigManager.getInstance();
-
-        SparkFlexConfig drivingConfig = MAXSwerveModuleConfig.drivingConfig;
-        SparkMaxConfig turningConfig = MAXSwerveModuleConfig.turningConfig;
-
-        drivingConfig.closedLoop.pid(
-                cm.get("swerve_drive_p", 0.5),
-                cm.get("swerve_drive_i", 0.0),
-                cm.get("swerve_drive_d", 0.0));
-        turningConfig.closedLoop.pid(
-                cm.get("swerve_turning_p", 1),
-                cm.get("swerve_turning_i", 0.0),
-                cm.get("swerve_turning_d", 0.0));
-
-        frontLeft.reconfigure(drivingConfig, turningConfig);
-        rearRight.reconfigure(drivingConfig, turningConfig);
-        rearRight.reconfigure(drivingConfig, turningConfig);
-        rearLeft.reconfigure(drivingConfig, turningConfig);
-    }
+    //    public void reconfigure() {
+    //        ConfigManager cm = ConfigManager.getInstance();
+    //
+    //        SparkFlexConfig drivingConfig = MAXSwerveModuleConfig.drivingConfig;
+    //        SparkMaxConfig turningConfig = MAXSwerveModuleConfig.turningConfig;
+    //
+    //        drivingConfig.closedLoop.pid(
+    //                cm.get("swerve_drive_p", 0.5),
+    //                cm.get("swerve_drive_i", 0.0),
+    //                cm.get("swerve_drive_d", 0.0));
+    //        turningConfig.closedLoop.pid(
+    //                cm.get("swerve_turning_p", 1),
+    //                cm.get("swerve_turning_i", 0.0),
+    //                cm.get("swerve_turning_d", 0.0));
+    //
+    //        frontLeft.reconfigure(drivingConfig, turningConfig);
+    //        rearRight.reconfigure(drivingConfig, turningConfig);
+    //        rearRight.reconfigure(drivingConfig, turningConfig);
+    //        rearLeft.reconfigure(drivingConfig, turningConfig);
+    //    }
 
     @Override
     public void periodic() {

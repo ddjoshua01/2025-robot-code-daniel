@@ -152,7 +152,7 @@ public class AlignCommand extends Command {
 
         double xAxisCalc =
                 this.xProfile.calculate(
-                                0,
+                                configManager.get("align_trap_t_sec", 0.2),
                                 new TrapezoidProfile.State(
                                         robotPose.getX(),
                                         swerveSubsystem.getFieldRelativeChassisSpeeds()
@@ -161,14 +161,15 @@ public class AlignCommand extends Command {
                         .velocity;
         double yAxisCalc =
                 this.yProfile.calculate(
-                                0,
+                                configManager.get("align_trap_t_sec", 0.2),
                                 new TrapezoidProfile.State(
                                         robotPose.getY(),
                                         swerveSubsystem.getFieldRelativeChassisSpeeds()
                                                 .vyMetersPerSecond),
                                 new TrapezoidProfile.State(targetPos.getY(), 0))
                         .velocity;
-        double rotationPidCalc = this.rotationPid.calculate(robotPose.getRotation().getZ());
+
+        double rotCalc = this.rotationPid.calculate(robotPose.getRotation().getZ());
 
         debug.setEntry("Dist to target (Error)", distToTarget);
 
@@ -189,7 +190,7 @@ public class AlignCommand extends Command {
 
         debug.setEntry("Xms", xAxisCalc);
         debug.setEntry("Yms", yAxisCalc);
-        debug.setEntry("Rrads", rotationPidCalc);
+        debug.setEntry("Rrads", rotationPid.getSetpoint().velocity);
 
         this.debug.setArrayEntry(
                 "target_pose",
@@ -199,7 +200,7 @@ public class AlignCommand extends Command {
                     this.targetPos.getRotation().getRadians()
                 });
 
-        swerveSubsystem.drive(xAxisCalc, yAxisCalc, 0.0, true, !stopWhenFinished, true);
+        swerveSubsystem.drive(xAxisCalc, yAxisCalc, rotCalc, true, !stopWhenFinished, true);
 
         if (checkAtGoal() && doUpdate) {
             LOGGER.info("Hit goal, waiting for time to expire");
@@ -218,7 +219,7 @@ public class AlignCommand extends Command {
 
     @Override
     public void end(boolean interrupted) {
-        //        if (stopWhenFinished) swerveSubsystem.zeroVoltage();
+        if (stopWhenFinished) swerveSubsystem.zeroVoltage();
         //        else swerveSubsystem.drive(this.finalX, this.finalY, 0.0, true, true, true);
         //        LOGGER.info("Final commanded speeds: {} {}", this.finalX, this.finalY);
     }
@@ -226,17 +227,17 @@ public class AlignCommand extends Command {
     private boolean checkAtGoal() {
         return distToTarget
                         <= configManager.get(
-                                String.format("align_%s_pos_dist_tol", this.profile), 0)
+                                String.format("align_%s_pos_dist_tol", this.profile), 0.0)
                 && rotationPid.atGoal()
                 && MathUtil.isNear(
                         configManager.get(
                                 String.format("align_%s_x_target_end_vel", this.profile), 0.0),
                         swerveSubsystem.getFieldRelativeChassisSpeeds().vxMetersPerSecond,
-                        configManager.get("align_vel_tol", 0.0))
+                        configManager.get(String.format("align_%s_vel_tol", this.profile), 0.0))
                 && MathUtil.isNear(
                         configManager.get(
                                 String.format("align_%s_y_target_end_vel", this.profile), 0.0),
                         swerveSubsystem.getFieldRelativeChassisSpeeds().vyMetersPerSecond,
-                        configManager.get("align_vel_tol", 0.0));
+                        configManager.get(String.format("align_%s_vel_tol", this.profile), 0.0));
     }
 }
