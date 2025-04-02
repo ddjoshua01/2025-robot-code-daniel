@@ -6,6 +6,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import java.util.function.DoubleSupplier;
 import org.blackknights.subsystems.SwerveSubsystem;
 import org.blackknights.utils.ConfigManager;
+import org.blackknights.utils.NetworkTablesUtils;
 
 /** Command to drive swerve */
 public class DriveCommands extends Command {
@@ -56,12 +57,18 @@ public class DriveCommands extends Command {
                         radians.getAsDouble(),
                         ConfigManager.getInstance().get("controller_deadband", 0.06));
 
+        NetworkTablesUtils debug = NetworkTablesUtils.getTable("debug");
+
+        debug.setEntry("Forward desired", forwardDesired);
+        debug.setEntry("Sideways desired", sidewaysDesired);
+        debug.setEntry("Rotation desired", radiansDesired);
+
         swerveSubsystem.drive(
                 forwardDesired,
                 sidewaysDesired,
                 radiansDesired,
                 fieldRelativeFromButton,
-                true,
+                false,
                 false);
     }
 

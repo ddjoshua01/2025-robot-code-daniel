@@ -78,6 +78,8 @@ public class RobotContainer {
                 new SequentialCommandGroup(
                         getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("10L4")),
                         getAutoIntakeCommand(IntakeSides.LEFT),
+                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("7L4")),
+                        getAutoIntakeCommand(IntakeSides.LEFT),
                         getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("8L4")),
                         getAutoIntakeCommand(IntakeSides.LEFT),
                         getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("9L4"))));
@@ -87,7 +89,7 @@ public class RobotContainer {
                 new SequentialCommandGroup(
                         getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("3L4")),
                         getAutoIntakeCommand(IntakeSides.RIGHT),
-                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("4L4")),
+                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("6L4")),
                         getAutoIntakeCommand(IntakeSides.RIGHT),
                         getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("5L4"))));
 
@@ -110,10 +112,12 @@ public class RobotContainer {
                 new DriveCommands(
                         swerveSubsystem,
                         () ->
-                                primaryController.getLeftY()
+                                Math.pow(primaryController.getLeftY(), 2)
+                                        * Math.signum(primaryController.getLeftY())
                                         * ConfigManager.getInstance().get("driver_max_speed", 3.5),
                         () ->
-                                primaryController.getLeftX()
+                                Math.pow(primaryController.getLeftX(), 2)
+                                        * Math.signum(primaryController.getLeftX())
                                         * ConfigManager.getInstance().get("driver_max_speed", 3.5),
                         () ->
                                 -primaryController.getRightX()
@@ -287,6 +291,7 @@ public class RobotContainer {
                                                 ConfigManager.getInstance()
                                                         .get("align_dist_back", 0.5)),
                                 false,
+                                true,
                                 "rough"),
                         new BaseCommand(elevatorSubsystem, armSubsystem)),
                 new ParallelRaceGroup(
@@ -294,6 +299,7 @@ public class RobotContainer {
                                         swerveSubsystem,
                                         () -> currentSupplier.get().getPose(),
                                         true,
+                                        false,
                                         "fine")
                                 .withTimeout(
                                         ConfigManager.getInstance()
@@ -357,13 +363,19 @@ public class RobotContainer {
                 intakePose.plus(new Transform2d(0, 0, Rotation2d.fromRadians(Math.PI)));
 
         return new ParallelRaceGroup(
-                new IntakeCommand(intakeSubsystem, IntakeCommand.IntakeMode.INTAKE),
-                new ParallelCommandGroup(
-                        new AlignCommand(swerveSubsystem, () -> intakePoseFinal, true, "rough"),
-                        new ElevatorArmCommand(
-                                elevatorSubsystem,
-                                armSubsystem,
-                                () -> ScoringConstants.ScoringHeights.INTAKE)));
+                        new IntakeCommand(intakeSubsystem, IntakeCommand.IntakeMode.INTAKE),
+                        new ParallelCommandGroup(
+                                new AlignCommand(
+                                        swerveSubsystem,
+                                        () -> intakePoseFinal,
+                                        true,
+                                        false,
+                                        "rough"),
+                                new ElevatorArmCommand(
+                                        elevatorSubsystem,
+                                        armSubsystem,
+                                        () -> ScoringConstants.ScoringHeights.INTAKE)))
+                .withTimeout(5);
     }
 
     private static Pose2d getPose2d(IntakeSides side) {

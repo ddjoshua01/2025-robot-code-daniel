@@ -12,7 +12,7 @@ public class VisionConstants {
 
     public static final Transform3d LEFT_CAM_TRANSFORM =
             new Transform3d(
-                    0.253,
+                    ConfigManager.getInstance().get("left_cam_x", 0.253),
                     0.336,
                     0.229,
                     new Rotation3d(
@@ -20,10 +20,9 @@ public class VisionConstants {
                             0.0,
                             Math.toRadians(
                                     ConfigManager.getInstance().get("left_cam_angle", -10.0))));
-
     public static final Transform3d RIGHT_CAM_TRANSFORM =
             new Transform3d(
-                    0.253,
+                    ConfigManager.getInstance().get("right_cam_x", .253),
                     -0.3995,
                     0.229,
                     new Rotation3d(

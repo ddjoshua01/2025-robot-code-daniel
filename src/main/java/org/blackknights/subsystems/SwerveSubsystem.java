@@ -1,8 +1,6 @@
 /* Black Knights Robotics (C) 2025 */
 package org.blackknights.subsystems;
 
-import com.revrobotics.spark.config.SparkFlexConfig;
-import com.revrobotics.spark.config.SparkMaxConfig;
 import com.studica.frc.AHRS;
 import edu.wpi.first.hal.FRCNetComm.tInstances;
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
@@ -24,7 +22,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.blackknights.constants.DrivetrainConstants;
 import org.blackknights.controllers.MAXSwerveModule;
-import org.blackknights.controllers.MAXSwerveModuleConfig;
 import org.blackknights.framework.Odometry;
 import org.blackknights.utils.ConfigManager;
 import org.blackknights.utils.NetworkTablesUtils;
@@ -133,26 +130,26 @@ public class SwerveSubsystem extends SubsystemBase {
                     .getDoubleTopic("rlpos")
                     .getEntry(rearLeft.getPosition().angle.getRadians());
 
-    public void reconfigure() {
-        ConfigManager cm = ConfigManager.getInstance();
-
-        SparkFlexConfig drivingConfig = MAXSwerveModuleConfig.drivingConfig;
-        SparkMaxConfig turningConfig = MAXSwerveModuleConfig.turningConfig;
-
-        drivingConfig.closedLoop.pid(
-                cm.get("swerve_drive_p", 0.5),
-                cm.get("swerve_drive_i", 0.0),
-                cm.get("swerve_drive_d", 0.0));
-        turningConfig.closedLoop.pid(
-                cm.get("swerve_turning_p", 1),
-                cm.get("swerve_turning_i", 0.0),
-                cm.get("swerve_turning_d", 0.0));
-
-        frontLeft.reconfigure(drivingConfig, turningConfig);
-        rearRight.reconfigure(drivingConfig, turningConfig);
-        rearRight.reconfigure(drivingConfig, turningConfig);
-        rearLeft.reconfigure(drivingConfig, turningConfig);
-    }
+    //    public void reconfigure() {
+    //        ConfigManager cm = ConfigManager.getInstance();
+    //
+    //        SparkFlexConfig drivingConfig = MAXSwerveModuleConfig.drivingConfig;
+    //        SparkMaxConfig turningConfig = MAXSwerveModuleConfig.turningConfig;
+    //
+    //        drivingConfig.closedLoop.pid(
+    //                cm.get("swerve_drive_p", 0.5),
+    //                cm.get("swerve_drive_i", 0.0),
+    //                cm.get("swerve_drive_d", 0.0));
+    //        turningConfig.closedLoop.pid(
+    //                cm.get("swerve_turning_p", 1),
+    //                cm.get("swerve_turning_i", 0.0),
+    //                cm.get("swerve_turning_d", 0.0));
+    //
+    //        frontLeft.reconfigure(drivingConfig, turningConfig);
+    //        rearRight.reconfigure(drivingConfig, turningConfig);
+    //        rearRight.reconfigure(drivingConfig, turningConfig);
+    //        rearLeft.reconfigure(drivingConfig, turningConfig);
+    //    }
 
     @Override
     public void periodic() {
@@ -243,13 +240,17 @@ public class SwerveSubsystem extends SubsystemBase {
 
         if (rateLimit) {
 
-            // Math that calculates important stuff about where the robot is heading
             double inputTranslationDirection =
                     Math.atan2(sidewaysMetersPerSecond, forwardMetersPerSecond);
             double inputTranslationMagnitude =
                     Math.sqrt(
                             Math.pow(forwardMetersPerSecond, 2.0)
                                     + Math.pow(sidewaysMetersPerSecond, 2.0));
+
+            double currentTranslationMagnitude =
+                    Math.sqrt(
+                            Math.pow(getRobotRelativeSpeeds().vxMetersPerSecond, 2.0)
+                                    + Math.pow(getRobotRelativeSpeeds().vyMetersPerSecond, 2.0));
 
             double directionSlewRate;
             if (currentTranslationMagnitude != 0.0) {
@@ -261,57 +262,33 @@ public class SwerveSubsystem extends SubsystemBase {
                                                         DrivetrainConstants.DIRECTION_SLEW_RATE)
                                         / currentTranslationMagnitude);
             } else {
-                directionSlewRate = 500.0; // super high number means slew is instantaneous
+                directionSlewRate =
+                        500.0; // super high number means change in direction is instantaneous
             }
 
             double currentTime = WPIUtilJNI.now() * 1e-6;
             double elapsedTime = currentTime - previousTime;
 
-            double angleDifference =
-                    SwerveUtils.angleDifference(
-                            inputTranslationDirection, currentTranslationDirection);
-            if (angleDifference < 0.45 * Math.PI) {
-                currentTranslationDirection =
-                        SwerveUtils.stepTowardsCircular(
-                                currentTranslationDirection,
-                                inputTranslationDirection,
-                                directionSlewRate * elapsedTime);
-                currentTranslationMagnitude = magnitudeLimiter.calculate(inputTranslationMagnitude);
-            } else if (angleDifference > 0.85 * Math.PI) {
-                if (currentTranslationMagnitude
-                        > 1e-4) { // small number avoids floating-point errors
-                    currentTranslationMagnitude = magnitudeLimiter.calculate(0.0);
-                } else {
-                    currentTranslationDirection =
-                            SwerveUtils.wrapAngle(currentTranslationDirection + Math.PI);
-                    currentTranslationMagnitude =
-                            magnitudeLimiter.calculate(inputTranslationMagnitude);
-                }
-            } else {
-                currentTranslationDirection =
-                        SwerveUtils.stepTowardsCircular(
-                                currentTranslationDirection,
-                                inputTranslationDirection,
-                                directionSlewRate * elapsedTime);
-                currentTranslationMagnitude = magnitudeLimiter.calculate(inputTranslationMagnitude);
-            }
+            currentTranslationDirection =
+                    SwerveUtils.stepTowardsCircular(
+                            currentTranslationDirection,
+                            inputTranslationDirection,
+                            directionSlewRate * elapsedTime);
 
             previousTime = currentTime;
 
-            xSpeedCommanded = currentTranslationMagnitude * Math.cos(currentTranslationDirection);
-            ySpeedCommanded = currentTranslationMagnitude * Math.sin(currentTranslationDirection);
-            currentRotation = rotationLimiter.calculate(radiansPerSecond);
+            xSpeedCommanded = inputTranslationMagnitude * Math.cos(currentTranslationDirection);
+            ySpeedCommanded = inputTranslationMagnitude * Math.sin(currentTranslationDirection);
 
         } else {
             // If there's no rate limit, robot does the exact inputs given.
             xSpeedCommanded = forwardMetersPerSecond;
             ySpeedCommanded = sidewaysMetersPerSecond;
-            currentRotation = radiansPerSecond;
         }
 
         double xSpeedDelivered = xSpeedCommanded;
         double ySpeedDelivered = ySpeedCommanded;
-        double rotationDelivered = currentRotation;
+        double rotationDelivered = radiansPerSecond;
 
         var swerveModuleStates =
                 DrivetrainConstants.DRIVE_KINEMATICS.toSwerveModuleStates(
@@ -331,6 +308,7 @@ public class SwerveSubsystem extends SubsystemBase {
                                         xSpeedDelivered, ySpeedDelivered, rotationDelivered));
         SwerveDriveKinematics.desaturateWheelSpeeds(
                 swerveModuleStates, DrivetrainConstants.MAX_SPEED_METERS_PER_SECOND);
+
         frontLeft.setDesiredState(swerveModuleStates[0]);
         frontRight.setDesiredState(swerveModuleStates[1]);
         rearLeft.setDesiredState(swerveModuleStates[2]);
