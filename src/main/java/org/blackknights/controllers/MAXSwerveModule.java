@@ -13,10 +13,12 @@ import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.config.SparkFlexConfig;
 import com.revrobotics.spark.config.SparkMaxConfig;
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
+import org.blackknights.utils.ConfigManager;
 import org.blackknights.utils.NetworkTablesUtils;
 
 /** A wrapper class for swerve modules */
@@ -128,7 +130,12 @@ public class MAXSwerveModule {
                 correctedDesiredState.speedMetersPerSecond,
                 ControlType.kVelocity,
                 ClosedLoopSlot.kSlot0,
-                ffOutput);
+                MathUtil.isNear(
+                                0.0,
+                                correctedDesiredState.speedMetersPerSecond,
+                                ConfigManager.getInstance().get("swerve_min_velocity", 0.01))
+                        ? 0.0
+                        : ffOutput);
 
         turningClosedLoopController.setReference(
                 correctedDesiredState.angle.getRadians(), ControlType.kPosition);

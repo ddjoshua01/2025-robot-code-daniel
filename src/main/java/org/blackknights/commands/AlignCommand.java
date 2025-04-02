@@ -2,7 +2,7 @@
 package org.blackknights.commands;
 
 import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.math.controller.ProfiledPIDController;
+import edu.wpi.first.math.controller.SimpleMotorFeedforward;
 import edu.wpi.first.math.geometry.*;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.wpilibj.Timer;
@@ -10,7 +10,6 @@ import edu.wpi.first.wpilibj2.command.Command;
 import java.util.function.Supplier;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.blackknights.constants.AlignConstants;
 import org.blackknights.framework.Odometry;
 import org.blackknights.subsystems.SwerveSubsystem;
 import org.blackknights.utils.AlignUtils;
@@ -46,15 +45,11 @@ public class AlignCommand extends Command {
     private static final Logger LOGGER = LogManager.getLogger();
     private final SwerveSubsystem swerveSubsystem;
 
-    private final ProfiledPIDController rotationPid =
-            new ProfiledPIDController(
-                    AlignConstants.ROTATION_P,
-                    AlignConstants.ROTATION_I,
-                    AlignConstants.ROTATION_D,
-                    AlignConstants.ROTATION_CONSTRAINTS);
-
     private TrapezoidProfile xProfile;
     private TrapezoidProfile yProfile;
+    private TrapezoidProfile rotationProfile;
+
+    private SimpleMotorFeedforward rotationFF;
 
     private final Odometry odometry = Odometry.getInstance();
     private final ConfigManager configManager = ConfigManager.getInstance();
@@ -103,16 +98,6 @@ public class AlignCommand extends Command {
 
         LOGGER.debug("Created new align command with '{}' profile", this.profile);
 
-        Pose3d robotPose = Odometry.getInstance().getRobotPose();
-        this.rotationPid.enableContinuousInput(-Math.PI, Math.PI);
-
-        this.rotationPid.reset(
-                robotPose.getRotation().getZ(),
-                swerveSubsystem.getFieldRelativeChassisSpeeds().omegaRadiansPerSecond);
-
-        this.rotationPid.setGoal(robotPose.getRotation().getZ());
-        this.rotationPid.calculate(robotPose.getRotation().getZ());
-
         addRequirements(swerveSubsystem);
     }
 
@@ -138,11 +123,6 @@ public class AlignCommand extends Command {
         LOGGER.info("Initializing AlignCommand");
         Pose3d robotPose = odometry.getRobotPose();
 
-        // rot PID updates
-        this.rotationPid.setP(configManager.get("align_rot_p", 7.3));
-        this.rotationPid.setD(configManager.get("align_rot_d", 0.5));
-        this.rotationPid.setI(configManager.get("align_rot_i", 0.0));
-
         this.xProfile =
                 new TrapezoidProfile(
                         new TrapezoidProfile.Constraints(
@@ -161,28 +141,27 @@ public class AlignCommand extends Command {
                                         String.format("align_%s_y_max_accel_mps", this.profile),
                                         2.5)));
 
-        this.rotationPid.setConstraints(
-                new TrapezoidProfile.Constraints(
-                        Math.toRadians(
-                                configManager.get(
-                                        String.format("align_%s_rot_max_vel_deg", this.profile),
-                                        360)),
-                        Math.toRadians(
-                                configManager.get(
-                                        String.format("align_%s_rot_max_accel_degps", this.profile),
-                                        360))));
+        this.rotationProfile =
+                new TrapezoidProfile(
+                        new TrapezoidProfile.Constraints(
+                                Math.toRadians(
+                                        configManager.get(
+                                                String.format(
+                                                        "align_%s_rot_max_vel_deg", this.profile),
+                                                360)),
+                                Math.toRadians(
+                                        configManager.get(
+                                                String.format(
+                                                        "align_%s_rot_max_accel_degps",
+                                                        this.profile),
+                                                360))));
 
-        this.rotationPid.setTolerance(
-                Math.toRadians(
-                        configManager.get(
-                                String.format("align_%s_rotation_tolerance", this.profile), 1)));
-
-        // Reset All pids
-        this.rotationPid.reset(
-                robotPose.getRotation().getZ(),
-                swerveSubsystem.getFieldRelativeChassisSpeeds().omegaRadiansPerSecond);
-
-        this.rotationPid.setGoal(targetPos.getRotation().getRadians());
+        this.rotationFF =
+                new SimpleMotorFeedforward(
+                        configManager.get("align_rotation_ff_ks", 0.01622),
+                        configManager.get("align_rotation_ff_kv", 0.0),
+                        0.0,
+                        1);
     }
 
     @Override
@@ -213,6 +192,7 @@ public class AlignCommand extends Command {
                                                 .vxMetersPerSecond),
                                 new TrapezoidProfile.State(targetPos.getX(), this.finalXVel))
                         .velocity;
+
         double yAxisCalc =
                 this.yProfile.calculate(
                                 configManager.get("align_trap_t_sec", 0.2),
@@ -223,18 +203,39 @@ public class AlignCommand extends Command {
                                 new TrapezoidProfile.State(targetPos.getY(), this.finalYVel))
                         .velocity;
 
-        double rotCalc = this.rotationPid.calculate(robotPose.getRotation().getZ());
+        double errorBound = Math.PI;
+        double goal =
+                MathUtil.inputModulus(
+                        targetPos.getRotation().getRadians() - robotPose.getRotation().getZ(),
+                        -errorBound,
+                        errorBound);
+
+        double rotCalc =
+                this.rotationProfile.calculate(
+                                0.1,
+                                new TrapezoidProfile.State(
+                                        robotPose.getRotation().getZ(),
+                                        swerveSubsystem.getFieldRelativeChassisSpeeds()
+                                                .omegaRadiansPerSecond),
+                                new TrapezoidProfile.State(
+                                        goal + robotPose.getRotation().getZ(), 0.0))
+                        .velocity;
+
+        rotCalc += this.rotationFF.calculate(rotCalc);
 
         debug.setEntry("Dist to target (Error)", distToTarget);
 
         debug.setEntry("X Error", Math.abs(robotPose.getX() - targetPos.getX()));
         debug.setEntry("Y Error", Math.abs(robotPose.getY() - targetPos.getY()));
-        debug.setEntry("Rot Pid Error", this.rotationPid.getPositionError());
 
-        debug.setEntry("Rot Pid setpoint", this.rotationPid.atSetpoint());
-        debug.setEntry("Rot Pid goal", this.rotationPid.atGoal());
-        debug.setEntry("Robot rotation: ", robotPose.getRotation().getZ());
-        debug.setEntry("Rot setpoint", this.rotationPid.getSetpoint().position);
+        debug.setEntry("Align/Total time x", this.xProfile.totalTime());
+        debug.setEntry("Align/Total time y", this.yProfile.totalTime());
+        //        debug.setEntry("Rot Pid Error", this.rotationPid.getPositionError());
+        //
+        //        debug.setEntry("Rot Pid setpoint", this.rotationPid.atSetpoint());
+        //        debug.setEntry("Rot Pid goal", this.rotationPid.atGoal());
+        //        debug.setEntry("Robot rotation: ", robotPose.getRotation().getZ());
+        //        debug.setEntry("Rot setpoint", this.rotationPid.getSetpoint().position);
 
         debug.setEntry(
                 "Rot diff",
@@ -244,7 +245,7 @@ public class AlignCommand extends Command {
 
         debug.setEntry("Xms", xAxisCalc);
         debug.setEntry("Yms", yAxisCalc);
-        debug.setEntry("Rrads", rotationPid.getSetpoint().velocity);
+        debug.setEntry("Rrads", rotCalc);
 
         this.debug.setArrayEntry(
                 "target_pose",
@@ -293,7 +294,28 @@ public class AlignCommand extends Command {
                                         String.format("align_%s_halfmoon_tol", this.profile),
                                         0.0)));
 
-        debug.setEntry("Align/Rotation check", rotationPid.atGoal());
+        debug.setEntry(
+                "Align/Rotation check",
+                Math.abs(
+                                Math.abs(Odometry.getInstance().getRobotPose().getRotation().getZ())
+                                        - Math.abs(targetPos.getRotation().getRadians()))
+                        <= Math.toRadians(
+                                ConfigManager.getInstance()
+                                        .get(
+                                                String.format("align_%s_rot_tol_deg", this.profile),
+                                                1.0)));
+        debug.setEntry(
+                "The value",
+                Math.abs(
+                        Math.abs(Odometry.getInstance().getRobotPose().getRotation().getZ())
+                                - Math.abs(targetPos.getRotation().getRadians())));
+
+        debug.setEntry(
+                "The value current",
+                Math.abs(Odometry.getInstance().getRobotPose().getRotation().getZ()));
+
+        debug.setEntry("The value target", Math.abs(targetPos.getRotation().getRadians()));
+
         debug.setEntry(
                 "Align/X Vel Check",
                 MathUtil.isNear(
@@ -313,18 +335,33 @@ public class AlignCommand extends Command {
         return distToTarget
                         <= configManager.get(
                                 String.format("align_%s_pos_dist_tol", this.profile), 0.0)
+                && Math.abs(
+                                Math.abs(Odometry.getInstance().getRobotPose().getRotation().getZ())
+                                        - Math.abs(
+                                                targetPos.getRotation().getRadians() > Math.PI
+                                                        ? targetPos.getRotation().getRadians()
+                                                                - Math.PI * 2
+                                                        : targetPos.getRotation().getRadians()))
+                        <= Math.toRadians(
+                                ConfigManager.getInstance()
+                                        .get(
+                                                String.format("align_%s_rot_tol_deg", this.profile),
+                                                1.0))
                 && (!useHalfMoon
                         || halfMoonDist
                                 >= configManager.get(
                                         String.format("align_%s_halfmoon_tol", this.profile), 0.0))
-                && rotationPid.atGoal()
-                && MathUtil.isNear(
-                        this.finalXVel,
-                        swerveSubsystem.getFieldRelativeChassisSpeeds().vxMetersPerSecond,
-                        configManager.get(String.format("align_%s_vel_tol", this.profile), 0.0))
-                && MathUtil.isNear(
-                        this.finalYVel,
-                        swerveSubsystem.getFieldRelativeChassisSpeeds().vyMetersPerSecond,
-                        configManager.get(String.format("align_%s_vel_tol", this.profile), 0.0));
+                && (!stopWhenFinished
+                        || MathUtil.isNear(
+                                this.finalXVel,
+                                swerveSubsystem.getFieldRelativeChassisSpeeds().vxMetersPerSecond,
+                                configManager.get(
+                                        String.format("align_%s_vel_tol", this.profile), 0.0)))
+                && (!stopWhenFinished
+                        || MathUtil.isNear(
+                                this.finalYVel,
+                                swerveSubsystem.getFieldRelativeChassisSpeeds().vyMetersPerSecond,
+                                configManager.get(
+                                        String.format("align_%s_vel_tol", this.profile), 0.0)));
     }
 }

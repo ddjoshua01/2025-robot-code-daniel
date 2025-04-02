@@ -78,6 +78,8 @@ public class RobotContainer {
                 new SequentialCommandGroup(
                         getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("10L4")),
                         getAutoIntakeCommand(IntakeSides.LEFT),
+                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("7L4")),
+                        getAutoIntakeCommand(IntakeSides.LEFT),
                         getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("8L4")),
                         getAutoIntakeCommand(IntakeSides.LEFT),
                         getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("9L4"))));
@@ -87,7 +89,7 @@ public class RobotContainer {
                 new SequentialCommandGroup(
                         getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("3L4")),
                         getAutoIntakeCommand(IntakeSides.RIGHT),
-                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("4L4")),
+                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("6L4")),
                         getAutoIntakeCommand(IntakeSides.RIGHT),
                         getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("5L4"))));
 
@@ -361,14 +363,19 @@ public class RobotContainer {
                 intakePose.plus(new Transform2d(0, 0, Rotation2d.fromRadians(Math.PI)));
 
         return new ParallelRaceGroup(
-                new IntakeCommand(intakeSubsystem, IntakeCommand.IntakeMode.INTAKE),
-                new ParallelCommandGroup(
-                        new AlignCommand(
-                                swerveSubsystem, () -> intakePoseFinal, true, false, "rough"),
-                        new ElevatorArmCommand(
-                                elevatorSubsystem,
-                                armSubsystem,
-                                () -> ScoringConstants.ScoringHeights.INTAKE)));
+                        new IntakeCommand(intakeSubsystem, IntakeCommand.IntakeMode.INTAKE),
+                        new ParallelCommandGroup(
+                                new AlignCommand(
+                                        swerveSubsystem,
+                                        () -> intakePoseFinal,
+                                        true,
+                                        false,
+                                        "rough"),
+                                new ElevatorArmCommand(
+                                        elevatorSubsystem,
+                                        armSubsystem,
+                                        () -> ScoringConstants.ScoringHeights.INTAKE)))
+                .withTimeout(5);
     }
 
     private static Pose2d getPose2d(IntakeSides side) {
