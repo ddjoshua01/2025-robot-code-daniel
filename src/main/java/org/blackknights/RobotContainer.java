@@ -56,7 +56,7 @@ public class RobotContainer {
 
     private final Odometry odometry = Odometry.getInstance();
     // Auto Chooser
-    SendableChooser<Command> superSecretMissileTech = new SendableChooser<>();
+    SendableChooser<Supplier<Command>> superSecretMissileTech = new SendableChooser<>();
 
     // CQ profile selector
     private final SendableChooser<CoralQueue.CoralQueueProfile> cqProfiles =
@@ -75,32 +75,35 @@ public class RobotContainer {
         // Autos
         superSecretMissileTech.addOption(
                 "LEFT_3",
-                new SequentialCommandGroup(
-                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("10L4")),
-                        getAutoIntakeCommand(IntakeSides.LEFT),
-                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("7L4")),
-                        getAutoIntakeCommand(IntakeSides.LEFT),
-                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("8L4")),
-                        getAutoIntakeCommand(IntakeSides.LEFT),
-                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("9L4"))));
+                () ->
+                        new SequentialCommandGroup(
+                                getLocationPlaceCommand(
+                                        CoralQueue.CoralPosition.fromString("10L4")),
+                                getAutoIntakeCommand(IntakeSides.LEFT),
+                                getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("8L4")),
+                                getAutoIntakeCommand(IntakeSides.LEFT),
+                                getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("9L4")),
+                                getAutoIntakeCommand(IntakeSides.LEFT),
+                                getLocationPlaceCommand(
+                                        CoralQueue.CoralPosition.fromString("7L4"))));
 
         superSecretMissileTech.addOption(
                 "RIGHT_3",
-                new SequentialCommandGroup(
-                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("3L4")),
-                        getAutoIntakeCommand(IntakeSides.RIGHT),
-                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("6L4")),
-                        getAutoIntakeCommand(IntakeSides.RIGHT),
-                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("5L4"))));
+                () ->
+                        new SequentialCommandGroup(
+                                getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("3L4")),
+                                getAutoIntakeCommand(IntakeSides.RIGHT),
+                                getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("5L4")),
+                                getAutoIntakeCommand(IntakeSides.RIGHT),
+                                getLocationPlaceCommand(
+                                        CoralQueue.CoralPosition.fromString("4L4"))));
 
         superSecretMissileTech.addOption(
                 "CENTER_LEFT",
-                getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("12L4")));
+                () -> getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("12L4")));
         superSecretMissileTech.addOption(
                 "CENTER_RIGHT",
-                getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("1L4")));
-
-        superSecretMissileTech.addOption("INTAKE_TEST", getAutoIntakeCommand(IntakeSides.RIGHT));
+                () -> getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("1L4")));
     }
 
     /** Configure controller bindings */
@@ -112,12 +115,10 @@ public class RobotContainer {
                 new DriveCommands(
                         swerveSubsystem,
                         () ->
-                                Math.pow(primaryController.getLeftY(), 2)
-                                        * Math.signum(primaryController.getLeftY())
+                                primaryController.getLeftY()
                                         * ConfigManager.getInstance().get("driver_max_speed", 3.5),
                         () ->
-                                Math.pow(primaryController.getLeftX(), 2)
-                                        * Math.signum(primaryController.getLeftX())
+                                primaryController.getLeftX()
                                         * ConfigManager.getInstance().get("driver_max_speed", 3.5),
                         () ->
                                 -primaryController.getRightX()
@@ -150,7 +151,9 @@ public class RobotContainer {
                                                 armSubsystem,
                                                 () -> ScoringConstants.ScoringHeights.INTAKE),
                                         new IntakeCommand(
-                                                intakeSubsystem, IntakeCommand.IntakeMode.INTAKE)),
+                                                intakeSubsystem,
+                                                IntakeCommand.IntakeMode.INTAKE,
+                                                ScoringConstants.ScoringHeights.L1)),
                                 new RunCommand(
                                                 () ->
                                                         swerveSubsystem.drive(
@@ -221,11 +224,19 @@ public class RobotContainer {
 
         secondaryController
                 .rightTrigger(0.2)
-                .whileTrue(new IntakeCommand(intakeSubsystem, IntakeCommand.IntakeMode.OUTTAKE));
+                .whileTrue(
+                        new IntakeCommand(
+                                intakeSubsystem,
+                                IntakeCommand.IntakeMode.OUTTAKE,
+                                ScoringConstants.ScoringHeights.L1));
 
         secondaryController
                 .leftTrigger(0.2)
-                .whileTrue(new IntakeCommand(intakeSubsystem, IntakeCommand.IntakeMode.INTAKE));
+                .whileTrue(
+                        new IntakeCommand(
+                                intakeSubsystem,
+                                IntakeCommand.IntakeMode.INTAKE,
+                                ScoringConstants.ScoringHeights.L1));
     }
 
     /** Runs once when the code starts */
@@ -254,7 +265,7 @@ public class RobotContainer {
      *
      * @return The command to run
      */
-    public Command getAutonomousCommand() {
+    public Supplier<Command> getAutonomousCommand() {
         return superSecretMissileTech.getSelected();
     }
 
@@ -295,15 +306,27 @@ public class RobotContainer {
                                 "rough"),
                         new BaseCommand(elevatorSubsystem, armSubsystem)),
                 new ParallelRaceGroup(
-                        new AlignCommand(
-                                        swerveSubsystem,
-                                        () -> currentSupplier.get().getPose(),
-                                        true,
-                                        false,
-                                        "fine")
-                                .withTimeout(
-                                        ConfigManager.getInstance()
-                                                .get("align_fine_max_time", 3.0)),
+                        new SequentialCommandGroup(
+                                new RunCommand(
+                                        () -> {
+                                            if (currentSupplier.get().getSide()
+                                                    == ScoringConstants.ScoringSides.LEFT) {
+                                                rightCam.setEnabled(true);
+                                                leftCam.setEnabled(false);
+                                            } else {
+                                                leftCam.setEnabled(true);
+                                                rightCam.setEnabled(false);
+                                            }
+                                        }),
+                                new AlignCommand(
+                                                swerveSubsystem,
+                                                () -> currentSupplier.get().getPose(),
+                                                true,
+                                                false,
+                                                "fine")
+                                        .withTimeout(
+                                                ConfigManager.getInstance()
+                                                        .get("align_fine_max_time", 3.0))),
                         new RunCommand(
                                 () ->
                                         intakeSubsystem.setSpeed(
@@ -318,8 +341,11 @@ public class RobotContainer {
                         new ElevatorArmCommand(
                                 elevatorSubsystem,
                                 armSubsystem,
-                                () -> nextSupplier.get().getHeight()),
-                        new IntakeCommand(intakeSubsystem, IntakeCommand.IntakeMode.OUTTAKE)
+                                () -> currentSupplier.get().getHeight()),
+                        new IntakeCommand(
+                                        intakeSubsystem,
+                                        IntakeCommand.IntakeMode.OUTTAKE,
+                                        nextSupplier.get().getHeight())
                                 .withTimeout(
                                         ConfigManager.getInstance()
                                                 .get("outtake_max_time_sec", 5.0))),
@@ -363,7 +389,10 @@ public class RobotContainer {
                 intakePose.plus(new Transform2d(0, 0, Rotation2d.fromRadians(Math.PI)));
 
         return new ParallelRaceGroup(
-                        new IntakeCommand(intakeSubsystem, IntakeCommand.IntakeMode.INTAKE),
+                        new IntakeCommand(
+                                intakeSubsystem,
+                                IntakeCommand.IntakeMode.INTAKE,
+                                ScoringConstants.ScoringHeights.L1),
                         new ParallelCommandGroup(
                                 new AlignCommand(
                                         swerveSubsystem,

@@ -17,17 +17,18 @@ import org.photonvision.targeting.PhotonPipelineResult;
 
 /** */
 public class Camera {
-    private Optional<NetworkTablesUtils> limelightTable;
+    private NetworkTablesUtils limelightTable;
 
-    private Optional<PhotonCamera> photonCamera;
-    private Optional<PhotonPoseEstimator> photonPoseEstimator;
+    private PhotonCamera photonCamera;
+    private PhotonPoseEstimator photonPoseEstimator;
 
     private final Transform3d camOffset;
+    private final String name;
+    private final CameraType camType;
+
     private double photonTimestamp;
     private Pose3d targetPose;
-    private final String name;
-
-    private final CameraType camType;
+    private boolean enabled;
 
     private static final Logger LOGGER = LogManager.getLogger();
 
@@ -41,24 +42,22 @@ public class Camera {
         this.camType = camType;
         this.camOffset = camOffset;
         this.name = name;
+        this.enabled = true;
 
         switch (this.camType) {
             case PHOTONVISION -> {
-                photonCamera = Optional.of(new PhotonCamera(name));
+                photonCamera = new PhotonCamera(name);
                 photonPoseEstimator =
-                        Optional.of(
-                                new PhotonPoseEstimator(
-                                        AprilTagFieldLayout.loadField(
-                                                AprilTagFields.k2025ReefscapeWelded),
-                                        PhotonPoseEstimator.PoseStrategy
-                                                .MULTI_TAG_PNP_ON_COPROCESSOR,
-                                        this.camOffset));
-                limelightTable = Optional.empty();
+                        new PhotonPoseEstimator(
+                                AprilTagFieldLayout.loadField(AprilTagFields.k2025ReefscapeWelded),
+                                PhotonPoseEstimator.PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR,
+                                this.camOffset);
+                limelightTable = null;
             }
             case LIMELIGHT -> {
-                photonCamera = Optional.empty();
-                photonPoseEstimator = Optional.empty();
-                limelightTable = Optional.of(NetworkTablesUtils.getTable(name));
+                photonCamera = null;
+                photonPoseEstimator = null;
+                limelightTable = NetworkTablesUtils.getTable(name);
             }
         }
     }
@@ -72,12 +71,12 @@ public class Camera {
     public Optional<Pose3d> getPoseFieldSpace(Pose3d prevPosition) {
         switch (this.camType) {
             case PHOTONVISION -> {
-                assert this.photonPoseEstimator.isPresent();
-                assert this.photonCamera.isPresent();
+                assert this.photonPoseEstimator != null;
+                assert this.photonCamera != null;
 
                 PhotonPipelineResult res;
                 try {
-                    res = this.photonCamera.get().getAllUnreadResults().get(0);
+                    res = this.photonCamera.getAllUnreadResults().get(0);
                     Transform3d worstTarget = res.getBestTarget().getBestCameraToTarget();
                     this.targetPose =
                             new Pose3d(worstTarget.getTranslation(), worstTarget.getRotation());
@@ -87,9 +86,8 @@ public class Camera {
 
                 if (!res.hasTargets()) return Optional.empty();
 
-                this.photonPoseEstimator.get().setReferencePose(prevPosition);
+                this.photonPoseEstimator.setReferencePose(prevPosition);
                 return photonPoseEstimator
-                        .get()
                         .update(res)
                         .map(
                                 (e) -> {
@@ -105,14 +103,13 @@ public class Camera {
     }
 
     private Optional<Pose3d> getPose3dLimelight() {
-        assert this.limelightTable.isPresent();
+        assert this.limelightTable != null;
 
-        double[] rawPose =
-                this.limelightTable.get().getArrayEntry("botpose_wpiblue", new double[0]);
+        double[] rawPose = this.limelightTable.getArrayEntry("botpose_wpiblue", new double[0]);
         if (rawPose.length != 6) return Optional.empty();
 
         double[] targetPoseRaw =
-                this.limelightTable.get().getArrayEntry("targetpose_cameraspace", new double[0]);
+                this.limelightTable.getArrayEntry("targetpose_cameraspace", new double[0]);
         if (targetPoseRaw.length == 6) {
             Pose3d cameraPose =
                     new Pose3d(
@@ -138,20 +135,26 @@ public class Camera {
     public double getTimestamp() {
         switch (this.camType) {
             case LIMELIGHT -> {
-                assert this.limelightTable.isPresent();
+                assert this.limelightTable != null;
                 return Timer.getFPGATimestamp()
-                        - (this.limelightTable.get().getEntry("tl", Double.POSITIVE_INFINITY)
-                                / 1000)
-                        - (this.limelightTable.get().getEntry("cl", Double.POSITIVE_INFINITY)
-                                / 1000);
+                        - (this.limelightTable.getEntry("tl", Double.POSITIVE_INFINITY) / 1000)
+                        - (this.limelightTable.getEntry("cl", Double.POSITIVE_INFINITY) / 1000);
             }
             case PHOTONVISION -> {
-                assert this.photonCamera.isPresent();
+                assert this.photonCamera != null;
 
                 return photonTimestamp;
             }
         }
         return 0;
+    }
+
+    public void setEnabled(boolean e) {
+        this.enabled = e;
+    }
+
+    public boolean isEnabled() {
+        return this.enabled;
     }
 
     /**

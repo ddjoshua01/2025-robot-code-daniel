@@ -3,6 +3,7 @@ package org.blackknights.commands;
 
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
+import org.blackknights.constants.ScoringConstants;
 import org.blackknights.subsystems.IntakeSubsystem;
 import org.blackknights.utils.ConfigManager;
 
@@ -10,6 +11,7 @@ import org.blackknights.utils.ConfigManager;
 public class IntakeCommand extends Command {
     private final IntakeSubsystem intakeSubsystem;
     private final IntakeMode mode;
+    private final ScoringConstants.ScoringHeights height;
 
     private double startTime;
 
@@ -19,9 +21,13 @@ public class IntakeCommand extends Command {
      * @param intakeSubsystem The instance of {@link IntakeSubsystem}
      * @param mode The intake mode ({@link IntakeMode})
      */
-    public IntakeCommand(IntakeSubsystem intakeSubsystem, IntakeMode mode) {
+    public IntakeCommand(
+            IntakeSubsystem intakeSubsystem,
+            IntakeMode mode,
+            ScoringConstants.ScoringHeights height) {
         this.intakeSubsystem = intakeSubsystem;
         this.mode = mode;
+        this.height = height;
         addRequirements(intakeSubsystem);
     }
 
@@ -42,7 +48,12 @@ public class IntakeCommand extends Command {
             case OUTTAKE:
                 {
                     if (Timer.getFPGATimestamp() * 1000 - this.startTime
-                            > ConfigManager.getInstance().get("outtake_wait_time_ms", 40)) {
+                            > ConfigManager.getInstance()
+                                    .get(
+                                            String.format(
+                                                    "outtake_%s_wait_time_ms",
+                                                    this.height.toString().toLowerCase()),
+                                            250)) {
                         intakeSubsystem.setVoltage(
                                 ConfigManager.getInstance().get("outtake_speed", -8.0));
                     }
@@ -62,7 +73,22 @@ public class IntakeCommand extends Command {
                 || (mode.equals(IntakeMode.OUTTAKE)
                         && !intakeSubsystem.getLinebreak()
                         && Timer.getFPGATimestamp() * 1000 - this.startTime
-                                > ConfigManager.getInstance().get("outtaking_time_ms", 40));
+                                > (ConfigManager.getInstance()
+                                                .get(
+                                                        String.format(
+                                                                "outtaking_%s_time_ms",
+                                                                this.height
+                                                                        .toString()
+                                                                        .toLowerCase()),
+                                                        200)
+                                        + ConfigManager.getInstance()
+                                                .get(
+                                                        String.format(
+                                                                "outtake_%s_wait_time_ms",
+                                                                this.height
+                                                                        .toString()
+                                                                        .toLowerCase()),
+                                                        250)));
     }
 
     /** Enum of the different intake modes */
