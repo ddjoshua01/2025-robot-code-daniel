@@ -13,6 +13,7 @@ import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.networktables.DoubleEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import java.util.function.BooleanSupplier;
 import org.blackknights.constants.ElevatorConstants;
 import org.blackknights.utils.ConfigManager;
 
@@ -204,6 +205,10 @@ public class ElevatorSubsystem extends SubsystemBase {
         double encoderAverageVel = (leftEncoder.getVelocity() + rightEncoder.getVelocity()) / 2;
         // Calculates average pos
         return encoderAverageVel * ElevatorConstants.ROTATIONS_TO_METERS;
+    }
+
+    public BooleanSupplier isAtTargetSupplier() {
+        return this.elevatorPID::atGoal;
     }
 
     /**

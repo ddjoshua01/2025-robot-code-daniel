@@ -82,7 +82,7 @@ public class RobotContainer {
                                 getAutoIntakeCommand(IntakeSides.LEFT),
                                 getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("9L4")),
                                 getAutoIntakeCommand(IntakeSides.LEFT),
-                                getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("9L4")),
+                                getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("8L4")),
                                 getAutoIntakeCommand(IntakeSides.LEFT),
                                 getLocationPlaceCommand(
                                         CoralQueue.CoralPosition.fromString("7L4"))));
@@ -151,9 +151,7 @@ public class RobotContainer {
                                                 armSubsystem,
                                                 () -> ScoringConstants.ScoringHeights.INTAKE),
                                         new IntakeCommand(
-                                                intakeSubsystem,
-                                                IntakeCommand.IntakeMode.INTAKE,
-                                                ScoringConstants.ScoringHeights.L1)),
+                                                intakeSubsystem, IntakeCommand.IntakeMode.INTAKE)),
                                 new RunCommand(
                                                 () ->
                                                         swerveSubsystem.drive(
@@ -224,19 +222,11 @@ public class RobotContainer {
 
         secondaryController
                 .rightTrigger(0.2)
-                .whileTrue(
-                        new IntakeCommand(
-                                intakeSubsystem,
-                                IntakeCommand.IntakeMode.OUTTAKE,
-                                ScoringConstants.ScoringHeights.L1));
+                .whileTrue(new IntakeCommand(intakeSubsystem, IntakeCommand.IntakeMode.OUTTAKE));
 
         secondaryController
                 .leftTrigger(0.2)
-                .whileTrue(
-                        new IntakeCommand(
-                                intakeSubsystem,
-                                IntakeCommand.IntakeMode.INTAKE,
-                                ScoringConstants.ScoringHeights.L1));
+                .whileTrue(new IntakeCommand(intakeSubsystem, IntakeCommand.IntakeMode.INTAKE));
     }
 
     /** Runs once when the code starts */
@@ -346,11 +336,11 @@ public class RobotContainer {
                         new ElevatorArmCommand(
                                 elevatorSubsystem,
                                 armSubsystem,
-                                () -> currentSupplier.get().getHeight()),
+                                () -> nextSupplier.get().getHeight()),
                         new IntakeCommand(
                                         intakeSubsystem,
                                         IntakeCommand.IntakeMode.OUTTAKE,
-                                        nextSupplier.get().getHeight())
+                                        elevatorSubsystem.isAtTargetSupplier())
                                 .withTimeout(
                                         ConfigManager.getInstance()
                                                 .get("outtake_max_time_sec", 5.0))),
@@ -394,10 +384,7 @@ public class RobotContainer {
                 intakePose.plus(new Transform2d(0, 0, Rotation2d.fromRadians(Math.PI)));
 
         return new ParallelRaceGroup(
-                        new IntakeCommand(
-                                intakeSubsystem,
-                                IntakeCommand.IntakeMode.INTAKE,
-                                ScoringConstants.ScoringHeights.L1),
+                        new IntakeCommand(intakeSubsystem, IntakeCommand.IntakeMode.INTAKE),
                         new ParallelCommandGroup(
                                 new AlignCommand(
                                         swerveSubsystem,

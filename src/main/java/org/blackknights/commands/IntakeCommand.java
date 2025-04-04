@@ -3,7 +3,7 @@ package org.blackknights.commands;
 
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
-import org.blackknights.constants.ScoringConstants;
+import java.util.function.BooleanSupplier;
 import org.blackknights.subsystems.IntakeSubsystem;
 import org.blackknights.utils.ConfigManager;
 import org.blackknights.utils.NetworkTablesUtils;
@@ -12,9 +12,22 @@ import org.blackknights.utils.NetworkTablesUtils;
 public class IntakeCommand extends Command {
     private final IntakeSubsystem intakeSubsystem;
     private final IntakeMode mode;
-    private final ScoringConstants.ScoringHeights height;
+    private final BooleanSupplier elevatorAtTargetSupplier;
 
-    private double startTime;
+    private double elevatorAtTargetTime;
+
+    /**
+     * Create a new intake command
+     *
+     * @param intakeSubsystem The instance of {@link IntakeSubsystem}
+     * @param mode The intake mode ({@link IntakeMode})
+     */
+    public IntakeCommand(IntakeSubsystem intakeSubsystem, IntakeMode mode) {
+        this.elevatorAtTargetSupplier = () -> true;
+        this.intakeSubsystem = intakeSubsystem;
+        this.mode = mode;
+        addRequirements(intakeSubsystem);
+    }
 
     /**
      * Create a new intake command
@@ -25,20 +38,23 @@ public class IntakeCommand extends Command {
     public IntakeCommand(
             IntakeSubsystem intakeSubsystem,
             IntakeMode mode,
-            ScoringConstants.ScoringHeights height) {
+            BooleanSupplier elevatorAtTargetSupplier) {
+        this.elevatorAtTargetSupplier = elevatorAtTargetSupplier;
         this.intakeSubsystem = intakeSubsystem;
         this.mode = mode;
-        this.height = height;
         addRequirements(intakeSubsystem);
     }
 
     @Override
     public void initialize() {
-        this.startTime = Timer.getFPGATimestamp() * 1000;
+        this.elevatorAtTargetTime = 0;
     }
 
     @Override
     public void execute() {
+        if (this.elevatorAtTargetTime == 0 && elevatorAtTargetSupplier.getAsBoolean()) {
+            this.elevatorAtTargetTime = Timer.getFPGATimestamp() * 1000;
+        }
         switch (mode) {
             case INTAKE:
                 {
@@ -51,10 +67,11 @@ public class IntakeCommand extends Command {
                     NetworkTablesUtils.getTable("debug/IntakeCmd")
                             .setEntry(
                                     "Time running",
-                                    Timer.getFPGATimestamp() * 1000 - this.startTime);
+                                    Timer.getFPGATimestamp() * 1000 - this.elevatorAtTargetTime);
 
-                    if (Timer.getFPGATimestamp() * 1000 - this.startTime
-                            > ConfigManager.getInstance().get("outtake_wait_time_ms", 250.0)) {
+                    if (Timer.getFPGATimestamp() * 1000 - this.elevatorAtTargetTime
+                                    > ConfigManager.getInstance().get("outtake_wait_time_ms", 250.0)
+                            && elevatorAtTargetSupplier.getAsBoolean()) {
 
                         intakeSubsystem.setVoltage(
                                 ConfigManager.getInstance().get("outtake_speed", -8.0));
@@ -74,7 +91,7 @@ public class IntakeCommand extends Command {
         return (mode.equals(IntakeMode.INTAKE) && intakeSubsystem.getLinebreak())
                 || (mode.equals(IntakeMode.OUTTAKE)
                         && !intakeSubsystem.getLinebreak()
-                        && Timer.getFPGATimestamp() * 1000 - this.startTime
+                        && Timer.getFPGATimestamp() * 1000 - this.elevatorAtTargetTime
                                 > (ConfigManager.getInstance().get("outtaking_time_ms", 200)
                                         + ConfigManager.getInstance()
                                                 .get("outtake_wait_time_ms", 250)));
