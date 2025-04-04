@@ -5,6 +5,7 @@ import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
 import edu.wpi.first.math.geometry.*;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import java.util.function.Supplier;
@@ -159,7 +160,7 @@ public class AlignCommand extends Command {
                                 + Math.pow(robotPose.getY() - halfMoonClosePose.getY(), 2));
 
         double trapCalc =
-                this.distProfile.calculate(
+                -this.distProfile.calculate(
                                 configManager.get("align_trap_t_sec", 0.2),
                                 new TrapezoidProfile.State(
                                         distToTarget,
@@ -176,10 +177,17 @@ public class AlignCommand extends Command {
                                                                 2.0))),
                                 new TrapezoidProfile.State(
                                         0.0,
-                                        configManager.get(
-                                                String.format(
-                                                        "align_%s_ending_vel_mag", this.profile),
-                                                1.0)))
+                                        DriverStation.isAutonomous()
+                                                ? configManager.get(
+                                                        String.format(
+                                                                "align_%s_auto_ending_vel_mag",
+                                                                this.profile),
+                                                        0.0)
+                                                : configManager.get(
+                                                        String.format(
+                                                                "align_%s_ending_vel_mag",
+                                                                this.profile),
+                                                        1.0)))
                         .velocity;
 
         double a = Math.atan2(d_y, d_x);

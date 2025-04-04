@@ -55,7 +55,7 @@ public class SwerveSubsystem extends SubsystemBase {
                     DrivetrainConstants.REAR_RIGHT_CHASSIS_ANGULAR_OFFSET);
 
     // The gyro sensor
-    private final AHRS gyro = new AHRS(AHRS.NavXComType.kMXP_SPI);
+    private final AHRS gyro = new AHRS(AHRS.NavXComType.kUSB1);
 
     // Slew Rate Constants
     private double currentRotation = 0.0;

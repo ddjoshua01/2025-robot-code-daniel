@@ -29,7 +29,7 @@ public class Odometry {
     private static final Logger LOGGER = LogManager.getLogger();
 
     private final NetworkTablesUtils NTTelemetry = NetworkTablesUtils.getTable("Telemetry");
-    private final NetworkTablesUtils debug = NetworkTablesUtils.getTable("debug");
+    private final NetworkTablesUtils debug = NetworkTablesUtils.getTable("debug/Odometry");
 
     private Optional<Pose3d> targetPose = Optional.of(new Pose3d());
 
@@ -174,14 +174,14 @@ public class Odometry {
                 });
         for (Camera c : this.cameras.values()) {
             Optional<Pose3d> pose = c.getPoseFieldSpace(this.getRobotPose());
-            if (pose.isPresent()) {
+            debug.setEntry(String.format("%s/enabled", c.getName()), c.isEnabled());
+            if (pose.isPresent() && c.isEnabled()) {
                 double dist =
                         Math.sqrt(
                                 Math.pow(c.getTargetPose().getX(), 2)
                                         + Math.pow(c.getTargetPose().getY(), 2));
 
                 debug.setEntry(String.format("%s/dist_to_target", c.getName()), dist);
-                debug.setEntry(String.format("%s/enabled", c.getName()), c.isEnabled());
                 debug.setArrayEntry(
                         String.format("%s/pose", c.getName()),
                         new double[] {
@@ -190,6 +190,7 @@ public class Odometry {
 
                 if (dist <= ConfigManager.getInstance().get("vision_cutoff_distance", 3)
                         && dist > ConfigManager.getInstance().get("vision_min_distance", 0.5)) {
+                    debug.setEntry(String.format("%s/Adding target", c.getName()), true);
 
                     this.hasSeenTarget = true;
                     LOGGER.debug("Added vision measurement from `{}`", c.getName());
@@ -201,6 +202,8 @@ public class Odometry {
                                             c.getTargetPose().getZ(),
                                             c.getTargetPose().getRotation()));
                     this.poseEstimator.addVisionMeasurement(pose.get(), c.getTimestamp());
+                } else {
+                    debug.setEntry(String.format("%s/Adding target", c.getName()), false);
                 }
             } else {
                 this.targetPose = Optional.empty();

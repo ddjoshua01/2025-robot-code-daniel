@@ -5,12 +5,13 @@ import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import org.blackknights.constants.ArmConstants;
+import org.blackknights.utils.NetworkTablesUtils;
 
 /** Subsystem to manage the intake (NOT HAND) */
 public class IntakeSubsystem extends SubsystemBase {
     private final WPI_TalonSRX motor = new WPI_TalonSRX(ArmConstants.MOTOR_ID);
 
-    private final DigitalInput intakeLinebreak = new DigitalInput(0);
+    private final DigitalInput intakeLinebreak = new DigitalInput(1);
 
     /** Create a new intake subsystem */
     public IntakeSubsystem() {
@@ -40,5 +41,10 @@ public class IntakeSubsystem extends SubsystemBase {
 
     public boolean getLinebreak() {
         return !intakeLinebreak.get();
+    }
+
+    @Override
+    public void periodic() {
+        NetworkTablesUtils.getTable("debug").setEntry("Intake/linebreak", this.getLinebreak());
     }
 }

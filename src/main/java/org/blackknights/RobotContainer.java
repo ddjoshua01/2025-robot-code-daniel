@@ -78,9 +78,9 @@ public class RobotContainer {
                 () ->
                         new SequentialCommandGroup(
                                 getLocationPlaceCommand(
-                                        CoralQueue.CoralPosition.fromString("10L4")),
+                                        CoralQueue.CoralPosition.fromString("11L4")),
                                 getAutoIntakeCommand(IntakeSides.LEFT),
-                                getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("8L4")),
+                                getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("9L4")),
                                 getAutoIntakeCommand(IntakeSides.LEFT),
                                 getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("9L4")),
                                 getAutoIntakeCommand(IntakeSides.LEFT),
@@ -307,7 +307,7 @@ public class RobotContainer {
                         new BaseCommand(elevatorSubsystem, armSubsystem)),
                 new ParallelRaceGroup(
                         new SequentialCommandGroup(
-                                new RunCommand(
+                                new InstantCommand(
                                         () -> {
                                             if (currentSupplier.get().getSide()
                                                     == ScoringConstants.ScoringSides.LEFT) {
@@ -326,7 +326,12 @@ public class RobotContainer {
                                                 "fine")
                                         .withTimeout(
                                                 ConfigManager.getInstance()
-                                                        .get("align_fine_max_time", 3.0))),
+                                                        .get("align_fine_max_time", 3.0)),
+                                new InstantCommand(
+                                        () -> {
+                                            rightCam.setEnabled(true);
+                                            leftCam.setEnabled(true);
+                                        })),
                         new RunCommand(
                                 () ->
                                         intakeSubsystem.setSpeed(

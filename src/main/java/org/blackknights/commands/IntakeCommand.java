@@ -6,6 +6,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import org.blackknights.constants.ScoringConstants;
 import org.blackknights.subsystems.IntakeSubsystem;
 import org.blackknights.utils.ConfigManager;
+import org.blackknights.utils.NetworkTablesUtils;
 
 /** Command to intake and outtake */
 public class IntakeCommand extends Command {
@@ -47,13 +48,14 @@ public class IntakeCommand extends Command {
                 }
             case OUTTAKE:
                 {
+                    NetworkTablesUtils.getTable("debug/IntakeCmd")
+                            .setEntry(
+                                    "Time running",
+                                    Timer.getFPGATimestamp() * 1000 - this.startTime);
+
                     if (Timer.getFPGATimestamp() * 1000 - this.startTime
-                            > ConfigManager.getInstance()
-                                    .get(
-                                            String.format(
-                                                    "outtake_%s_wait_time_ms",
-                                                    this.height.toString().toLowerCase()),
-                                            250)) {
+                            > ConfigManager.getInstance().get("outtake_wait_time_ms", 250.0)) {
+
                         intakeSubsystem.setVoltage(
                                 ConfigManager.getInstance().get("outtake_speed", -8.0));
                     }
@@ -73,22 +75,9 @@ public class IntakeCommand extends Command {
                 || (mode.equals(IntakeMode.OUTTAKE)
                         && !intakeSubsystem.getLinebreak()
                         && Timer.getFPGATimestamp() * 1000 - this.startTime
-                                > (ConfigManager.getInstance()
-                                                .get(
-                                                        String.format(
-                                                                "outtaking_%s_time_ms",
-                                                                this.height
-                                                                        .toString()
-                                                                        .toLowerCase()),
-                                                        200)
+                                > (ConfigManager.getInstance().get("outtaking_time_ms", 200)
                                         + ConfigManager.getInstance()
-                                                .get(
-                                                        String.format(
-                                                                "outtake_%s_wait_time_ms",
-                                                                this.height
-                                                                        .toString()
-                                                                        .toLowerCase()),
-                                                        250)));
+                                                .get("outtake_wait_time_ms", 250)));
     }
 
     /** Enum of the different intake modes */
