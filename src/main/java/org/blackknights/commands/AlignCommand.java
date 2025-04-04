@@ -159,7 +159,7 @@ public class AlignCommand extends Command {
                                 + Math.pow(robotPose.getY() - halfMoonClosePose.getY(), 2));
 
         double trapCalc =
-                -this.distProfile.calculate(
+                this.distProfile.calculate(
                                 configManager.get("align_trap_t_sec", 0.2),
                                 new TrapezoidProfile.State(
                                         distToTarget,
@@ -194,16 +194,12 @@ public class AlignCommand extends Command {
                                                 .vxMetersPerSecond,
                                         2.0)
                                 + Math.pow(
-                                        swerveSubsystem.getRobotRelativeSpeeds().vyMetersPerSecond,
+                                        swerveSubsystem.getFieldRelativeChassisSpeeds()
+                                                .vyMetersPerSecond,
                                         2.0)));
 
         double xAxisCalc = trapCalc * Math.cos(a);
         double yAxisCalc = trapCalc * Math.sin(a);
-
-        //        if (d_x < 0) {
-        //            xAxisCalc = -xAxisCalc;
-        //            yAxisCalc = -yAxisCalc;
-        //        }
 
         double errorBound = Math.PI;
         double goal =

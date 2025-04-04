@@ -180,9 +180,10 @@ public class Odometry {
                                 Math.pow(c.getTargetPose().getX(), 2)
                                         + Math.pow(c.getTargetPose().getY(), 2));
 
-                debug.setEntry(String.format("%s_dist_to_target", c.getName()), dist);
+                debug.setEntry(String.format("%s/dist_to_target", c.getName()), dist);
+                debug.setEntry(String.format("%s/enabled", c.getName()), c.isEnabled());
                 debug.setArrayEntry(
-                        String.format("%s_pose", c.getName()),
+                        String.format("%s/pose", c.getName()),
                         new double[] {
                             pose.get().getX(), pose.get().getY(), pose.get().getRotation().getZ()
                         });
