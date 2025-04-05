@@ -179,6 +179,19 @@ public class ElevatorSubsystem extends SubsystemBase {
         return rightEncoder.getPosition();
     }
 
+    public void resetEncoders() {
+        rightEncoder.setPosition(0.0);
+        leftEncoder.setPosition(0.0);
+    }
+
+    public void setRightEncoder(double position) {
+        rightEncoder.setPosition(position);
+    }
+
+    public void setLeftEncoder(double position) {
+        leftEncoder.setPosition(position);
+    }
+
     /** Reset elevator PID */
     public void resetPID() {
         elevatorPID.reset(getElevatorPosition());

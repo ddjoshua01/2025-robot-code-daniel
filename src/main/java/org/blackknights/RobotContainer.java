@@ -171,6 +171,30 @@ public class RobotContainer {
 
         primaryController.povDown().whileTrue(new RunCommand(() -> swerveSubsystem.zeroGyro()));
 
+        primaryController
+                .a()
+                .whileTrue(
+                        new RunCommand(
+                                () ->
+                                        elevatorSubsystem.setVoltage(
+                                                ConfigManager.getInstance()
+                                                        .get("elevator_manual_zero", -2.0)),
+                                elevatorSubsystem));
+
+        primaryController
+                .x()
+                .whileTrue(new InstantCommand(() -> elevatorSubsystem.resetEncoders()));
+
+        //        primaryController
+        //                .povUp()
+        //                .whileTrue(
+        //                        new InstantCommand(
+        //                                () ->
+        //                                        elevatorSubsystem.setRightEncoder(
+        //                                                ConfigManager.getInstance()
+        //                                                        .get("break_right_encoder_pos",
+        // -10.0))));
+
         secondaryController
                 .rightStick()
                 .onTrue(new InstantCommand(ScoringConstants::recomputeCoralPositions));
