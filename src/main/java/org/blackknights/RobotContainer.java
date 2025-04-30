@@ -6,6 +6,7 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.GenericHID;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.*;
@@ -47,9 +48,15 @@ public class RobotContainer {
                     Camera.CameraType.PHOTONVISION,
                     VisionConstants.RIGHT_CAM_TRANSFORM);
 
+    private final Camera centerCam =
+            new Camera(
+                    "centerCam",
+                    Camera.CameraType.PHOTONVISION,
+                    VisionConstants.CENTER_CAM_TRANSFORM);
+
     private final Odometry odometry = Odometry.getInstance();
     // Auto Chooser
-    SendableChooser<Command> superSecretMissileTech = new SendableChooser<>();
+    SendableChooser<Supplier<Command>> superSecretMissileTech = new SendableChooser<>();
 
     // CQ profile selector
     private final SendableChooser<CoralQueue.CoralQueueProfile> cqProfiles =
@@ -68,30 +75,35 @@ public class RobotContainer {
         // Autos
         superSecretMissileTech.addOption(
                 "LEFT_3",
-                new SequentialCommandGroup(
-                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("10L4")),
-                        getAutoIntakeCommand(IntakeSides.LEFT),
-                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("8L4")),
-                        getAutoIntakeCommand(IntakeSides.LEFT),
-                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("9L4"))));
+                () ->
+                        new SequentialCommandGroup(
+                                getLocationPlaceCommand(
+                                        CoralQueue.CoralPosition.fromString("11L4")),
+                                getAutoIntakeCommand(IntakeSides.LEFT),
+                                getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("9L4")),
+                                getAutoIntakeCommand(IntakeSides.LEFT),
+                                getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("8L4")),
+                                getAutoIntakeCommand(IntakeSides.LEFT),
+                                getLocationPlaceCommand(
+                                        CoralQueue.CoralPosition.fromString("7L4"))));
 
         superSecretMissileTech.addOption(
                 "RIGHT_3",
-                new SequentialCommandGroup(
-                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("3L4")),
-                        getAutoIntakeCommand(IntakeSides.RIGHT),
-                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("6L4")),
-                        getAutoIntakeCommand(IntakeSides.RIGHT),
-                        getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("7L4"))));
+                () ->
+                        new SequentialCommandGroup(
+                                getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("3L4")),
+                                getAutoIntakeCommand(IntakeSides.RIGHT),
+                                getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("5L4")),
+                                getAutoIntakeCommand(IntakeSides.RIGHT),
+                                getLocationPlaceCommand(
+                                        CoralQueue.CoralPosition.fromString("4L4"))));
 
         superSecretMissileTech.addOption(
                 "CENTER_LEFT",
-                getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("12L4")));
+                () -> getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("12L4")));
         superSecretMissileTech.addOption(
                 "CENTER_RIGHT",
-                getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("1L4")));
-
-        superSecretMissileTech.addOption("INTAKE_TEST", getAutoIntakeCommand(IntakeSides.RIGHT));
+                () -> getLocationPlaceCommand(CoralQueue.CoralPosition.fromString("1L4")));
     }
 
     /** Configure controller bindings */
@@ -125,24 +137,63 @@ public class RobotContainer {
         primaryController
                 .rightBumper()
                 .whileTrue(
-                        new ParallelCommandGroup(
-                                new DriveCommands(
-                                        swerveSubsystem,
-                                        primaryController::getLeftY,
-                                        primaryController::getLeftX,
-                                        () -> -primaryController.getRightX() * Math.PI,
-                                        true,
-                                        true),
-                                new ElevatorArmCommand(
-                                        elevatorSubsystem,
-                                        armSubsystem,
-                                        () -> ScoringConstants.ScoringHeights.INTAKE),
-                                new IntakeCommand(
-                                        intakeSubsystem, IntakeCommand.IntakeMode.INTAKE)));
+                        new SequentialCommandGroup(
+                                new ParallelRaceGroup(
+                                        new DriveCommands(
+                                                swerveSubsystem,
+                                                primaryController::getLeftY,
+                                                primaryController::getLeftX,
+                                                () -> -primaryController.getRightX() * Math.PI,
+                                                true,
+                                                true),
+                                        new ElevatorArmCommand(
+                                                elevatorSubsystem,
+                                                armSubsystem,
+                                                () -> ScoringConstants.ScoringHeights.INTAKE),
+                                        new IntakeCommand(
+                                                intakeSubsystem, IntakeCommand.IntakeMode.INTAKE)),
+                                new RunCommand(
+                                                () ->
+                                                        swerveSubsystem.drive(
+                                                                ConfigManager.getInstance()
+                                                                        .get("back_mps", -1.0),
+                                                                0.0,
+                                                                0.0,
+                                                                false,
+                                                                false,
+                                                                false),
+                                                swerveSubsystem)
+                                        .withTimeout(
+                                                ConfigManager.getInstance()
+                                                        .get("back_time_sec", 0.2))));
 
         elevatorSubsystem.setDefaultCommand(new BaseCommand(elevatorSubsystem, armSubsystem));
 
         primaryController.povDown().whileTrue(new RunCommand(() -> swerveSubsystem.zeroGyro()));
+
+        primaryController
+                .a()
+                .whileTrue(
+                        new RunCommand(
+                                () ->
+                                        elevatorSubsystem.setVoltage(
+                                                ConfigManager.getInstance()
+                                                        .get("elevator_manual_zero", -2.0)),
+                                elevatorSubsystem));
+
+        primaryController
+                .x()
+                .whileTrue(new InstantCommand(() -> elevatorSubsystem.resetEncoders()));
+
+        //        primaryController
+        //                .povUp()
+        //                .whileTrue(
+        //                        new InstantCommand(
+        //                                () ->
+        //                                        elevatorSubsystem.setRightEncoder(
+        //                                                ConfigManager.getInstance()
+        //                                                        .get("break_right_encoder_pos",
+        // -10.0))));
 
         secondaryController
                 .rightStick()
@@ -206,6 +257,7 @@ public class RobotContainer {
     public void robotInit() {
         odometry.addCamera(leftCam);
         odometry.addCamera(rightCam);
+        odometry.addCamera(centerCam);
     }
 
     /** Runs every 20ms while the robot is on */
@@ -227,7 +279,7 @@ public class RobotContainer {
      *
      * @return The command to run
      */
-    public Command getAutonomousCommand() {
+    public Supplier<Command> getAutonomousCommand() {
         return superSecretMissileTech.getSelected();
     }
 
@@ -253,6 +305,7 @@ public class RobotContainer {
     private Command getPlaceCommand(
             Supplier<CoralQueue.CoralPosition> currentSupplier,
             Supplier<CoralQueue.CoralPosition> nextSupplier) {
+
         return new SequentialCommandGroup(
                 new ParallelRaceGroup(
                         new AlignCommand(
@@ -263,17 +316,36 @@ public class RobotContainer {
                                                 ConfigManager.getInstance()
                                                         .get("align_dist_back", 0.5)),
                                 false,
+                                true,
                                 "rough"),
                         new BaseCommand(elevatorSubsystem, armSubsystem)),
                 new ParallelRaceGroup(
-                        new AlignCommand(
-                                        swerveSubsystem,
-                                        () -> currentSupplier.get().getPose(),
-                                        true,
-                                        "fine")
-                                .withTimeout(
-                                        ConfigManager.getInstance()
-                                                .get("align_fine_max_time", 3.0)),
+                        new SequentialCommandGroup(
+                                new InstantCommand(
+                                        () -> {
+                                            if (currentSupplier.get().getSide()
+                                                    == ScoringConstants.ScoringSides.LEFT) {
+                                                rightCam.setEnabled(true);
+                                                leftCam.setEnabled(false);
+                                            } else {
+                                                leftCam.setEnabled(true);
+                                                rightCam.setEnabled(false);
+                                            }
+                                        }),
+                                new AlignCommand(
+                                                swerveSubsystem,
+                                                () -> currentSupplier.get().getPose(),
+                                                true,
+                                                false,
+                                                "fine")
+                                        .withTimeout(
+                                                ConfigManager.getInstance()
+                                                        .get("align_fine_max_time", 3.0)),
+                                new InstantCommand(
+                                        () -> {
+                                            rightCam.setEnabled(true);
+                                            leftCam.setEnabled(true);
+                                        })),
                         new RunCommand(
                                 () ->
                                         intakeSubsystem.setSpeed(
@@ -289,8 +361,29 @@ public class RobotContainer {
                                 elevatorSubsystem,
                                 armSubsystem,
                                 () -> nextSupplier.get().getHeight()),
-                        new IntakeCommand(intakeSubsystem, IntakeCommand.IntakeMode.OUTTAKE)
-                                .withTimeout(1)));
+                        new IntakeCommand(
+                                        intakeSubsystem,
+                                        IntakeCommand.IntakeMode.OUTTAKE,
+                                        elevatorSubsystem.isAtTargetSupplier())
+                                .withTimeout(
+                                        ConfigManager.getInstance()
+                                                .get("outtake_max_time_sec", 5.0))),
+                new ParallelRaceGroup(
+                        new AutoEndCommand(),
+                        new BaseCommand(elevatorSubsystem, armSubsystem),
+                        new RunCommand(
+                                        () ->
+                                                swerveSubsystem.drive(
+                                                        ConfigManager.getInstance()
+                                                                .get("back_mps", -1.0),
+                                                        0.0,
+                                                        0.0,
+                                                        false,
+                                                        false,
+                                                        false),
+                                        swerveSubsystem)
+                                .withTimeout(
+                                        ConfigManager.getInstance().get("back_time_sec", 0.2))));
     }
 
     /**
@@ -315,22 +408,19 @@ public class RobotContainer {
                 intakePose.plus(new Transform2d(0, 0, Rotation2d.fromRadians(Math.PI)));
 
         return new ParallelRaceGroup(
-                new SequentialCommandGroup(
-                        new AlignCommand(
-                                swerveSubsystem,
-                                () ->
-                                        AlignUtils.getXDistBack(
-                                                intakePoseFinal,
-                                                ConfigManager.getInstance()
-                                                        .get("autointake_first_back", 1.0)),
-                                false,
-                                "auto"),
-                        new AlignCommand(swerveSubsystem, () -> intakePoseFinal, true, "fine")),
-                new ElevatorArmCommand(
-                        elevatorSubsystem,
-                        armSubsystem,
-                        () -> ScoringConstants.ScoringHeights.INTAKE),
-                new IntakeCommand(intakeSubsystem, IntakeCommand.IntakeMode.INTAKE));
+                        new IntakeCommand(intakeSubsystem, IntakeCommand.IntakeMode.INTAKE),
+                        new ParallelCommandGroup(
+                                new AlignCommand(
+                                        swerveSubsystem,
+                                        () -> intakePoseFinal,
+                                        true,
+                                        false,
+                                        "rough"),
+                                new ElevatorArmCommand(
+                                        elevatorSubsystem,
+                                        armSubsystem,
+                                        () -> ScoringConstants.ScoringHeights.INTAKE)))
+                .withTimeout(5);
     }
 
     private static Pose2d getPose2d(IntakeSides side) {
@@ -355,5 +445,21 @@ public class RobotContainer {
     private enum IntakeSides {
         LEFT,
         RIGHT
+    }
+
+    private static class AutoEndCommand extends Command {
+        private double currTime = Timer.getFPGATimestamp() * 1000;
+
+        @Override
+        public void initialize() {
+            this.currTime = Timer.getFPGATimestamp() * 1000;
+        }
+
+        @Override
+        public boolean isFinished() {
+            return DriverStation.isAutonomous()
+                    && Timer.getFPGATimestamp() * 1000 - this.currTime
+                            > ConfigManager.getInstance().get("auto_place_backup_time_ms", 0.2);
+        }
     }
 }

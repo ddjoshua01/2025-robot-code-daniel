@@ -7,7 +7,7 @@ import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator3d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Optional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -20,7 +20,7 @@ import org.blackknights.utils.NetworkTablesUtils;
 /** System for all odometry related stuff */
 public class Odometry {
     /** List of cameras used for vision-based measurements to refine odometry. */
-    private ArrayList<Camera> cameras = new ArrayList<>();
+    private HashMap<String, Camera> cameras = new HashMap<>();
 
     /** Singleton instance of the OdometrySubsystem. */
     private static Odometry INSTANCE = null;
@@ -29,7 +29,7 @@ public class Odometry {
     private static final Logger LOGGER = LogManager.getLogger();
 
     private final NetworkTablesUtils NTTelemetry = NetworkTablesUtils.getTable("Telemetry");
-    private final NetworkTablesUtils debug = NetworkTablesUtils.getTable("debug");
+    private final NetworkTablesUtils debug = NetworkTablesUtils.getTable("debug/Odometry");
 
     private Optional<Pose3d> targetPose = Optional.of(new Pose3d());
 
@@ -92,7 +92,7 @@ public class Odometry {
      * @param camera The {@link Camera} to add to the system.
      */
     public void addCamera(Camera camera) {
-        this.cameras.add(camera);
+        this.cameras.put(camera.getName(), camera);
     }
 
     public SwerveDrivePoseEstimator3d getPoseEstimator() {
@@ -106,11 +106,11 @@ public class Odometry {
      * @return Either an empty optional if the camera does not exist, or the camera
      */
     public Optional<Camera> getCamera(String name) {
-        for (Camera c : this.cameras) {
-            if (c.getName().equalsIgnoreCase(name)) return Optional.of(c);
+        if (!this.cameras.containsKey(name)) {
+            return Optional.empty();
         }
 
-        return Optional.empty();
+        return Optional.of(this.cameras.get(name));
     }
 
     /**
@@ -172,18 +172,25 @@ public class Odometry {
                     this.getRobotPose().getY(),
                     this.getRobotPose().getRotation().getZ()
                 });
-        for (Camera c : this.cameras) {
+        for (Camera c : this.cameras.values()) {
             Optional<Pose3d> pose = c.getPoseFieldSpace(this.getRobotPose());
-            if (pose.isPresent()) {
+            debug.setEntry(String.format("%s/enabled", c.getName()), c.isEnabled());
+            if (pose.isPresent() && c.isEnabled()) {
                 double dist =
                         Math.sqrt(
                                 Math.pow(c.getTargetPose().getX(), 2)
                                         + Math.pow(c.getTargetPose().getY(), 2));
 
-                debug.setEntry(String.format("%s_dist_to_target", c.getName()), dist);
+                debug.setEntry(String.format("%s/dist_to_target", c.getName()), dist);
+                debug.setArrayEntry(
+                        String.format("%s/pose", c.getName()),
+                        new double[] {
+                            pose.get().getX(), pose.get().getY(), pose.get().getRotation().getZ()
+                        });
 
                 if (dist <= ConfigManager.getInstance().get("vision_cutoff_distance", 3)
                         && dist > ConfigManager.getInstance().get("vision_min_distance", 0.5)) {
+                    debug.setEntry(String.format("%s/Adding target", c.getName()), true);
 
                     this.hasSeenTarget = true;
                     LOGGER.debug("Added vision measurement from `{}`", c.getName());
@@ -195,6 +202,8 @@ public class Odometry {
                                             c.getTargetPose().getZ(),
                                             c.getTargetPose().getRotation()));
                     this.poseEstimator.addVisionMeasurement(pose.get(), c.getTimestamp());
+                } else {
+                    debug.setEntry(String.format("%s/Adding target", c.getName()), false);
                 }
             } else {
                 this.targetPose = Optional.empty();

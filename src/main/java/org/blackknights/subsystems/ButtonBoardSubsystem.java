@@ -20,6 +20,7 @@ public class ButtonBoardSubsystem extends SubsystemBase {
 
     private Pose2d currentPose = null;
     private ScoringConstants.ScoringHeights currentHeight = null;
+    private ScoringConstants.ScoringSides currentSide = null;
 
     /**
      * Create a new Instance of the subsystem for the button board
@@ -40,9 +41,13 @@ public class ButtonBoardSubsystem extends SubsystemBase {
         if (this.currentHeight != null && this.currentPose != null) {
             coralQueue.interruptQueue(
                     new CoralQueue.CoralPosition(
-                            "BBInterrupt", this.currentPose, this.currentHeight));
+                            "BBInterrupt",
+                            this.currentPose,
+                            this.currentHeight,
+                            this.currentSide = null));
             this.currentPose = null;
             this.currentHeight = null;
+            this.currentSide = null;
         }
     }
 
@@ -75,6 +80,10 @@ public class ButtonBoardSubsystem extends SubsystemBase {
                                                 String.format("L%d", finalB - 12));
                             } else {
                                 int arrId = finalB + (isBlue ? 12 : 0) - 1;
+                                this.currentSide =
+                                        arrId % 2 == 0
+                                                ? ScoringConstants.ScoringSides.RIGHT
+                                                : ScoringConstants.ScoringSides.LEFT;
                                 this.currentPose = ScoringConstants.CORAL_POSITIONS[arrId];
                             }
                         }

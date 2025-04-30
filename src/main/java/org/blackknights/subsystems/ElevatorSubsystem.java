@@ -13,6 +13,7 @@ import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.networktables.DoubleEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import java.util.function.BooleanSupplier;
 import org.blackknights.constants.ElevatorConstants;
 import org.blackknights.utils.ConfigManager;
 
@@ -146,7 +147,7 @@ public class ElevatorSubsystem extends SubsystemBase {
         elevatorPID.setGoal(position);
 
         double pidCalc = elevatorPID.calculate(getElevatorPosition());
-        double ffCalc = elevatorFF.calculate(0.0);
+        double ffCalc = elevatorFF.calculate(elevatorPID.getSetpoint().velocity);
 
         //        if (Math.abs(this.getLeftEncoderPosition() - this.getRightEncoderPosition())
         //                > ConfigManager.getInstance().get("max_roation_diff", 1)) {
@@ -178,6 +179,19 @@ public class ElevatorSubsystem extends SubsystemBase {
         return rightEncoder.getPosition();
     }
 
+    public void resetEncoders() {
+        rightEncoder.setPosition(0.0);
+        leftEncoder.setPosition(0.0);
+    }
+
+    public void setRightEncoder(double position) {
+        rightEncoder.setPosition(position);
+    }
+
+    public void setLeftEncoder(double position) {
+        leftEncoder.setPosition(position);
+    }
+
     /** Reset elevator PID */
     public void resetPID() {
         elevatorPID.reset(getElevatorPosition());
@@ -204,6 +218,10 @@ public class ElevatorSubsystem extends SubsystemBase {
         double encoderAverageVel = (leftEncoder.getVelocity() + rightEncoder.getVelocity()) / 2;
         // Calculates average pos
         return encoderAverageVel * ElevatorConstants.ROTATIONS_TO_METERS;
+    }
+
+    public BooleanSupplier isAtTargetSupplier() {
+        return this.elevatorPID::atGoal;
     }
 
     /**

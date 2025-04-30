@@ -19,7 +19,6 @@ public class MAXSwerveModuleConfig {
                         * Math.PI
                         / DrivetrainConstants.DRIVING_MOTOR_REDUCTION;
         double turningFactor = 2 * Math.PI;
-        double drivingVelocityFeedForward = 1 / DrivetrainConstants.DRIVE_WHEEL_FREE_SPEED_RPS;
 
         drivingConfig.idleMode(IdleMode.kBrake).smartCurrentLimit(50);
         drivingConfig
@@ -30,8 +29,8 @@ public class MAXSwerveModuleConfig {
                 .closedLoop
                 .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
                 // These are example gains you may need to them for your own robot!
-                .pid(0.04, 0, 0)
-                .velocityFF(drivingVelocityFeedForward)
+                .pid(0.11185, 0, 0)
+                .velocityFF(0.0)
                 .outputRange(-1, 1);
 
         turningConfig.idleMode(IdleMode.kBrake).smartCurrentLimit(20);

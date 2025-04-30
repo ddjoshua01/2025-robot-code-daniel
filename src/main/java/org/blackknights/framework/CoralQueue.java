@@ -145,6 +145,7 @@ public class CoralQueue {
         private final String stringId;
         private final Pose2d pose;
         private final ScoringConstants.ScoringHeights height;
+        private final ScoringConstants.ScoringSides side;
 
         /**
          * Create a new coral position
@@ -153,10 +154,15 @@ public class CoralQueue {
          * @param pose A {@link Pose2d} for the soring position
          * @param height The target height
          */
-        public CoralPosition(String stringId, Pose2d pose, ScoringConstants.ScoringHeights height) {
+        public CoralPosition(
+                String stringId,
+                Pose2d pose,
+                ScoringConstants.ScoringHeights height,
+                ScoringConstants.ScoringSides side) {
             this.stringId = stringId;
             this.pose = pose;
             this.height = height;
+            this.side = side;
         }
 
         /** Create an empty coral position */
@@ -164,6 +170,7 @@ public class CoralQueue {
             this.stringId = "";
             this.pose = new Pose2d();
             this.height = ScoringConstants.ScoringHeights.L1;
+            this.side = ScoringConstants.ScoringSides.RIGHT;
         }
 
         public static CoralPosition fromString(String string) {
@@ -184,7 +191,14 @@ public class CoralQueue {
                 posIdx += 12;
             }
 
-            LOGGER.debug("CoralQ: posIdx = {}, heightString = {}", posIdx, heightString);
+            LOGGER.info(
+                    "CoralP: name = {}, posIdx = {}, heightString = {}, side = {}",
+                    string,
+                    posIdx,
+                    heightString,
+                    posIdx % 2 == 0
+                            ? ScoringConstants.ScoringSides.RIGHT
+                            : ScoringConstants.ScoringSides.LEFT);
 
             return new CoralPosition(
                     string,
@@ -192,7 +206,10 @@ public class CoralQueue {
                             ScoringConstants.CORAL_POSITIONS[posIdx].getX(),
                             ScoringConstants.CORAL_POSITIONS[posIdx].getY(),
                             ScoringConstants.CORAL_POSITIONS[posIdx].getRotation()),
-                    ScoringConstants.ScoringHeights.valueOf(heightString.toUpperCase()));
+                    ScoringConstants.ScoringHeights.valueOf(heightString.toUpperCase()),
+                    posIdx % 2 == 0
+                            ? ScoringConstants.ScoringSides.RIGHT
+                            : ScoringConstants.ScoringSides.LEFT);
         }
 
         /**
@@ -211,6 +228,10 @@ public class CoralQueue {
          */
         public ScoringConstants.ScoringHeights getHeight() {
             return this.height;
+        }
+
+        public ScoringConstants.ScoringSides getSide() {
+            return this.side;
         }
 
         /**
@@ -234,8 +255,8 @@ public class CoralQueue {
         @Override
         public String toString() {
             return String.format(
-                    "CoralPosition(stringId: %s, pose: %s, height: %s)",
-                    this.stringId, this.pose.toString(), this.height);
+                    "CoralPosition(stringId: %s, pose: %s, height: %s, side: %s)",
+                    this.stringId, this.pose.toString(), this.height, this.side);
         }
 
         @Override

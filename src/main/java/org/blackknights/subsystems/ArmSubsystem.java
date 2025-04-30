@@ -69,6 +69,8 @@ public class ArmSubsystem extends SubsystemBase {
                 pivotConfig,
                 SparkBase.ResetMode.kResetSafeParameters,
                 SparkBase.PersistMode.kPersistParameters);
+
+        pivotPID.enableContinuousInput(-Math.PI, Math.PI);
     }
 
     /**
@@ -107,10 +109,15 @@ public class ArmSubsystem extends SubsystemBase {
         //                ? pivotAbsEncoder.getPosition() - 2 * Math.PI -
         // ArmConstants.PIVOT_ENCODER_OFFSET
         //                : pivotAbsEncoder.getPosition() - ArmConstants.PIVOT_ENCODER_OFFSET;
-        return Math.PI * 2
-                - pivotAbsEncoder.getPosition()
-                - ConfigManager.getInstance()
-                        .get("arm_encoder_offset", ArmConstants.PIVOT_ENCODER_OFFSET);
+        double x =
+                Math.PI * 2
+                        - pivotAbsEncoder.getPosition()
+                        - ConfigManager.getInstance()
+                                .get("arm_encoder_offset", ArmConstants.PIVOT_ENCODER_OFFSET);
+
+        if (x >= Math.PI) x -= Math.PI * 2;
+
+        return x;
     }
 
     public double getPivotSpeed() {

@@ -24,7 +24,8 @@ class CoralQueueTest {
                 new CoralQueue.CoralPosition(
                         "11L4",
                         ScoringConstants.CORAL_POSITIONS[10],
-                        ScoringConstants.ScoringHeights.L4);
+                        ScoringConstants.ScoringHeights.L4,
+                        ScoringConstants.ScoringSides.RIGHT);
 
         assertEquals(expected, coralQueue.getNext());
 
@@ -32,7 +33,8 @@ class CoralQueueTest {
                 new CoralQueue.CoralPosition(
                         "1L1",
                         ScoringConstants.CORAL_POSITIONS[0],
-                        ScoringConstants.ScoringHeights.L1);
+                        ScoringConstants.ScoringHeights.L1,
+                        ScoringConstants.ScoringSides.RIGHT);
 
         assertEquals(expected, coralQueue.getNext());
 
@@ -40,7 +42,8 @@ class CoralQueueTest {
                 new CoralQueue.CoralPosition(
                         "3L3",
                         ScoringConstants.CORAL_POSITIONS[2],
-                        ScoringConstants.ScoringHeights.L3);
+                        ScoringConstants.ScoringHeights.L3,
+                        ScoringConstants.ScoringSides.RIGHT);
 
         assertEquals(expected, coralQueue.getNext());
     }
@@ -53,7 +56,8 @@ class CoralQueueTest {
                 new CoralQueue.CoralPosition(
                         "1L1",
                         ScoringConstants.CORAL_POSITIONS[0],
-                        ScoringConstants.ScoringHeights.L1);
+                        ScoringConstants.ScoringHeights.L1,
+                        ScoringConstants.ScoringSides.RIGHT);
         assertEquals(expected, coralQueue.getNext());
     }
 
@@ -67,22 +71,25 @@ class CoralQueueTest {
         CoralQueue.CoralPosition expected =
                 new CoralQueue.CoralPosition(
                         "6L1",
-                        ScoringConstants.CORAL_POSITIONS[5 + 12],
-                        ScoringConstants.ScoringHeights.L1);
+                        ScoringConstants.CORAL_POSITIONS[17],
+                        ScoringConstants.ScoringHeights.L1,
+                        ScoringConstants.ScoringSides.LEFT);
         assertEquals(expected, coralQueue.getNext());
 
         expected =
                 new CoralQueue.CoralPosition(
                         "12L4",
-                        ScoringConstants.CORAL_POSITIONS[11 + 12],
-                        ScoringConstants.ScoringHeights.L4);
+                        ScoringConstants.CORAL_POSITIONS[23],
+                        ScoringConstants.ScoringHeights.L4,
+                        ScoringConstants.ScoringSides.LEFT);
         assertEquals(expected, coralQueue.getNext());
 
         expected =
                 new CoralQueue.CoralPosition(
                         "9L4",
-                        ScoringConstants.CORAL_POSITIONS[8 + 12],
-                        ScoringConstants.ScoringHeights.L4);
+                        ScoringConstants.CORAL_POSITIONS[20],
+                        ScoringConstants.ScoringHeights.L4,
+                        ScoringConstants.ScoringSides.RIGHT);
 
         assertEquals(expected, coralQueue.getNext());
 

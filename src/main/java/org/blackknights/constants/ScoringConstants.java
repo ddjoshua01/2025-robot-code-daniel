@@ -98,6 +98,11 @@ public class ScoringConstants {
         INTAKE,
     }
 
+    public enum ScoringSides {
+        LEFT,
+        RIGHT
+    }
+
     /**
      * Get a scoring position from an april tag id
      *
